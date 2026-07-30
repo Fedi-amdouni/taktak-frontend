@@ -2,6 +2,15 @@ import { Client } from '@stomp/stompjs';
 import { Order, ServiceCall, AmbianceState } from '../types';
 import { subscribeLocalOrders } from './api';
 
+const getWebSocketUrl = () => {
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL.replace(/\/$/, '');
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/ws`;
+};
+
 class StompWebSocketService {
   private client: Client | null = null;
   private isConnected = false;
@@ -11,8 +20,7 @@ class StompWebSocketService {
     onOrderReceived: (order: Order) => void,
     onServiceCallReceived?: (call: ServiceCall) => void
   ) {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//localhost:8081/ws`;
+    const wsUrl = getWebSocketUrl();
 
     try {
       this.client = new Client({
@@ -59,8 +67,7 @@ class StompWebSocketService {
   }
 
   public subscribeAmbiance(cafeSlug: string, onAmbianceUpdated: (state: AmbianceState) => void) {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//localhost:8081/ws`;
+    const wsUrl = getWebSocketUrl();
 
     const client = new Client({
       brokerURL: wsUrl,
