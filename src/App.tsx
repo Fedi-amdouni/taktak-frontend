@@ -1,0 +1,43 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { TableSessionProvider } from './context/TableSessionContext';
+import { CartProvider } from './context/CartContext';
+import { ClientApp } from './pages/ClientApp';
+import { StaffDashboard } from './pages/StaffDashboard';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { KitchenDashboard } from './pages/KitchenDashboard';
+import { StaffPortal } from './pages/StaffPortal';
+import { AdminPortal } from './pages/AdminPortal';
+
+export const App: React.FC = () => {
+  return (
+    <Router>
+      <TableSessionProvider>
+        <CartProvider>
+          <Routes>
+            {/* Client Mobile App */}
+            <Route path="/m/:cafeSlug/t/:tableId" element={<ClientApp />} />
+            <Route path="/m/:cafeSlug" element={<ClientApp />} />
+
+            {/* Kitchen KDS Bar & Kitchen Screen */}
+            <Route path="/kitchen/:cafeSlug" element={<KitchenDashboard />} />
+            <Route path="/kitchen" element={<KitchenDashboard />} />
+
+            {/* Staff Tablet Portal & Dashboard */}
+            <Route path="/staff/:cafeSlug" element={<StaffDashboard />} />
+            <Route path="/staff" element={<StaffPortal />} />
+
+            {/* Admin Owner Portal & Dashboard */}
+            <Route path="/admin/:cafeSlug" element={<AdminDashboard />} />
+            <Route path="/admin" element={<AdminPortal />} />
+
+            {/* Default Fallback to Demo Table */}
+            <Route path="*" element={<Navigate to="/m/monastir-lounge/t/05" replace />} />
+          </Routes>
+        </CartProvider>
+      </TableSessionProvider>
+    </Router>
+  );
+};
+
+export default App;
