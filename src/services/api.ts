@@ -1,6 +1,6 @@
 import { Cafe, Category, Product, Order, OrderStatus, CreateOrderPayload, ServiceCall, Waiter, WaiterPerformance, AmbianceState, TableEntity, FloorPlan, FloorObstacle } from '../types';
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 
 export interface OwnerAnalytics {
   totalRevenue: number;
@@ -49,6 +49,14 @@ export const api = {
 
   getMenu: async (slug: string): Promise<{ categories: Category[]; products: Product[] }> => {
     return fetchJson<{ categories: Category[]; products: Product[] }>(`${API_BASE}/cafes/${slug}/menu`);
+  },
+
+  createCategory: async (payload: Pick<Category, 'cafeId' | 'name'> & Partial<Pick<Category, 'sortOrder'>>): Promise<Category> => {
+    return fetchJson<Category>(`${API_BASE}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
   },
 
   // 2D Tables Floor Plan Management

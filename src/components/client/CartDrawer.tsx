@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Trash2, Plus, Minus, Send, MapPin, ShoppingBag, Sparkles } from 'lucide-react';
+import { X, Trash2, Plus, Minus, Send, MapPin, ShoppingBag, Sparkles, Dices } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useTableSession } from '../../context/TableSessionContext';
 import { api } from '../../services/api';
@@ -8,12 +8,14 @@ interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onOrderCreated: (orderId: string) => void;
+  onOpenRoulette: () => void;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
   isOpen,
   onClose,
   onOrderCreated,
+  onOpenRoulette,
 }) => {
   const { cart, updateQuantity, removeFromCart, clearCart, totalPrice } = useCart();
   const { currentCafeSlug, currentTableNumber, setActiveOrderId } = useTableSession();
@@ -82,6 +84,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             Table {currentTableNumber < 10 ? `0${currentTableNumber}` : currentTableNumber}
           </span>
         </div>
+
+        <button onClick={onOpenRoulette} className="mx-4 mt-3 flex items-center justify-center gap-2 rounded-2xl border border-amber-400/20 bg-amber-400/10 py-2.5 text-xs font-extrabold text-amber-200 transition hover:bg-amber-400/20">
+          <Dices className="w-4 h-4" /> Chkoun ykhalles ?
+        </button>
 
         {/* Items List */}
         <div className="px-4 py-3 flex-1 overflow-y-auto space-y-2.5 no-scrollbar">

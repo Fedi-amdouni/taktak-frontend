@@ -11,6 +11,7 @@ interface InteractiveFloorPlanProps {
   orders: Order[];
   serviceCalls: ServiceCall[];
   activeWaiter: Waiter | null;
+  waiters?: Waiter[];
   isMyZoneOnly: boolean;
   onUpdateOrderStatus: (orderId: string, status: OrderStatus) => void;
   onReleaseTable: (orderId: string) => void;
@@ -24,6 +25,7 @@ export const InteractiveFloorPlan: React.FC<InteractiveFloorPlanProps> = ({
   orders,
   serviceCalls,
   activeWaiter,
+  waiters = [],
   isMyZoneOnly,
   onUpdateOrderStatus,
   onReleaseTable,
@@ -41,7 +43,12 @@ export const InteractiveFloorPlan: React.FC<InteractiveFloorPlanProps> = ({
     if (!availableZones.includes(activeZone)) setActiveZone(availableZones[0] || '');
   }, [activeZone, availableZones]);
 
-  // Helper to check if a table is assigned to current waiter
+  // Helper to check which waiter is assigned to a table
+  const getAssignedWaiterForTable = (tableNumber: number): Waiter | undefined => {
+    return waiters.find((w) => w.assignedTables && w.assignedTables.includes(tableNumber));
+  };
+
+  // Helper to check if a table is assigned to current logged-in waiter
   const isTableAssigned = (tableNumber: number) => {
     if (!activeWaiter || !activeWaiter.assignedTables || activeWaiter.assignedTables.length === 0) {
       return true;
@@ -79,9 +86,9 @@ export const InteractiveFloorPlan: React.FC<InteractiveFloorPlanProps> = ({
   const getTableStyle = (tableNumber: number, isAssigned: boolean) => {
     if (!isAssigned) {
       return {
-        bg: 'bg-gray-900/40 border-gray-800 text-gray-600',
+        bg: 'bg-gray-900/60 border-gray-800 text-gray-500',
         badge: '',
-        animation: 'opacity-40 grayscale',
+        animation: 'opacity-50 grayscale',
       };
     }
 
@@ -240,6 +247,7 @@ export const InteractiveFloorPlan: React.FC<InteractiveFloorPlanProps> = ({
             </div>
           ) : (
             currentZoneTables.map((table) => {
+              const ownerWaiter = getAssignedWaiterForTable(table.tableNumber);
               const isAssigned = isTableAssigned(table.tableNumber);
               const style = getTableStyle(table.tableNumber, isAssigned);
               const isRound = table.shape === 'ROUND';
@@ -259,15 +267,23 @@ export const InteractiveFloorPlan: React.FC<InteractiveFloorPlanProps> = ({
                   className={`absolute flex flex-col items-center justify-center p-2 transition-all duration-300 border shadow-2xl ${
                     isRound ? 'w-16 h-16 rounded-full' : isSofa ? 'w-24 h-14 rounded-2xl' : 'w-16 h-16 rounded-2xl'
                   } ${style.bg} ${style.animation} ${
-                    isAssigned ? 'active:scale-95 cursor-pointer' : 'cursor-not-allowed opacity-30 grayscale'
+                    isAssigned ? 'active:scale-95 cursor-pointer' : 'cursor-not-allowed opacity-40'
                   }`}
                 >
                   <span className="text-xs font-black tracking-tight">{displayCode}</span>
                   <span className="text-[9px] font-extrabold text-orange-400/90">N°{formatTableNumber(table.tableNumber)}</span>
+                  {ownerWaiter && (
+                    <span className="text-[8px] font-bold text-amber-300 truncate max-w-full">
+                      👤 {ownerWaiter.name}
+                    </span>
+                  )}
                   {style.badge && <span className="text-[8px] font-extrabold mt-0.5 truncate max-w-full">{style.badge}</span>}
                   {!isAssigned && (
-                    <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
-                      <Lock className="w-3 h-3 text-gray-500" />
+                    <div className="absolute inset-0 bg-black/75 rounded-2xl flex flex-col items-center justify-center p-1 text-center">
+                      <Lock className="w-3 h-3 text-amber-400 mb-0.5" />
+                      <span className="text-[8px] font-extrabold text-amber-300 truncate max-w-full">
+                        {ownerWaiter ? ownerWaiter.name : 'Autre zone'}
+                      </span>
                     </div>
                   )}
                 </button>

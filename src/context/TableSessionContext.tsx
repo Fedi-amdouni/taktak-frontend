@@ -61,11 +61,17 @@ export const TableSessionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const initializeSession = (cafeSlug: string, tableNumber: number) => {
     setScannedTableNumber(tableNumber);
 
+    // Read the persisted order id before React state hydration completes.
+    // ClientApp initializes the session on the same mount as this provider,
+    // so relying only on activeOrderId here used to overwrite it with null.
+    let persistedOrderId: string | null = activeOrderId;
+
     // Check if there is an existing session on a DIFFERENT table for the same cafe
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const session: TableSession = JSON.parse(saved);
+        persistedOrderId = session.activeOrderId || null;
         if (session.cafeSlug === cafeSlug && session.tableNumber !== tableNumber) {
           // TABLE CHANGE DETECTED!
           setPendingTransferTableNumber(tableNumber);
@@ -80,7 +86,7 @@ export const TableSessionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Direct initialization if same table or clean session
     setCurrentCafeSlug(cafeSlug);
     setCurrentTableNumber(tableNumber);
-    saveSession(cafeSlug, tableNumber, activeOrderId);
+    saveSession(cafeSlug, tableNumber, persistedOrderId);
   };
 
   const confirmTableTransfer = () => {

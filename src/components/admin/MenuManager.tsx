@@ -7,13 +7,20 @@ interface MenuManagerProps {
   cafeSlug: string;
 }
 
+const CREATE_CATEGORY_VALUE = '__create_category__';
+
 export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
   const [cafe, setCafe] = useState<Cafe | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+  const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
+  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   const loadMenu = async () => {
     const cafeData = await api.getCafeBySlug(cafeSlug);
@@ -41,7 +48,7 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64Url = reader.result as string;
-        setEditingProduct((prev) => prev ? { ...prev, imageUrl: base64Url } : null);
+        setEditingProduct((prev) => (prev ? { ...prev, imageUrl: base64Url } : null));
         setIsUploading(false);
       };
       reader.readAsDataURL(file);
@@ -51,15 +58,113 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
     }
   };
 
+  const openNewProduct = () => {
+    setIsCategoryFormOpen(false);
+    setNewCategoryName('');
+    setEditingProduct({
+      cafeId: cafe?.id || 'a1b2c3d4-e5f6-7890-abcd-111111111111',
+      categoryId: categories[0]?.id || '',
+      name: '',
+      price: 4.500,
+      promoPrice: undefined,
+      badge: undefined,
+      isAvailable: true,
+      imageUrl: 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?auto=format&fit=crop&w=400&q=80',
+    });
+  };
+
+  const openEditProduct = (product: Product) => {
+    setIsCategoryFormOpen(false);
+    setNewCategoryName('');
+
+    const rawPrice = product.price;
+    const numPrice = rawPrice !== null && rawPrice !== undefined ? Number(rawPrice) : NaN;
+    const finalPrice = Number.isFinite(numPrice) ? numPrice : 0;
+
+    const rawPromo = product.promoPrice;
+    const numPromo = rawPromo !== null && rawPromo !== undefined ? Number(rawPromo) : NaN;
+    const finalPromo = Number.isFinite(numPromo) && numPromo > 0 ? numPromo : undefined;
+
+    setEditingProduct({
+      ...product,
+      cafeId: product.cafeId || cafe?.id || 'a1b2c3d4-e5f6-7890-abcd-111111111111',
+      categoryId: product.categoryId || (categories.length > 0 ? categories[0].id : ''),
+      name: product.name || '',
+      price: finalPrice,
+      promoPrice: finalPromo,
+      badge: product.badge,
+      isAvailable: product.isAvailable ?? true,
+      imageUrl: product.imageUrl || '',
+      optionsJson: product.optionsJson,
+    });
+  };
+
+  const handleCategoryChange = (value: string) => {
+    if (value === CREATE_CATEGORY_VALUE) {
+      setIsCategoryFormOpen(true);
+      return;
+    }
+
+    setIsCategoryFormOpen(false);
+    setEditingProduct((previous) => (previous ? { ...previous, categoryId: value } : previous));
+  };
+
+  const handleCreateCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name || !cafe?.id || isCreatingCategory) return;
+
+    setIsCreatingCategory(true);
+    try {
+      const created = await api.createCategory({
+        cafeId: cafe.id,
+        name,
+        sortOrder: categories.length + 1,
+      });
+      setCategories((previous) =>
+        previous.some((category) => category.id === created.id) ? previous : [...previous, created]
+      );
+      setEditingProduct((previous) => (previous ? { ...previous, categoryId: created.id } : previous));
+      setIsCategoryFormOpen(false);
+      setNewCategoryName('');
+    } catch (err) {
+      alert('Erreur lors de la création de la catégorie. Veuillez réessayer.');
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  };
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct || isSubmitting) return;
+
+    const name = editingProduct.name?.trim() || '';
+    if (!name) {
+      alert('Veuillez renseigner le nom du produit.');
+      return;
+    }
+
+    const priceVal = Number(editingProduct.price);
+    if (!Number.isFinite(priceVal) || priceVal <= 0) {
+      alert('Veuillez indiquer un prix valide supérieur à 0.');
+      return;
+    }
+
+    let promoVal: number | undefined = undefined;
+    if (editingProduct.promoPrice !== undefined && editingProduct.promoPrice !== null) {
+      const parsedPromo = Number(editingProduct.promoPrice);
+      if (Number.isFinite(parsedPromo) && parsedPromo > 0) {
+        promoVal = parsedPromo;
+      }
+    }
 
     setIsSubmitting(true);
     try {
       const payload: Partial<Product> = {
         ...editingProduct,
         cafeId: cafe?.id || 'a1b2c3d4-e5f6-7890-abcd-111111111111',
+        name,
+        price: priceVal,
+        promoPrice: promoVal,
       };
       await api.saveProduct(payload);
       await loadMenu();
@@ -92,21 +197,10 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-white">Gestion du Menu</h2>
-          <p className="text-xs text-gray-400">Ajoutez des photos, fixez les prix promos et définissez la Suggestion du Chef</p>
+          <p className="text-xs text-gray-400">Ajoutez des photos, fixez les prix promos et définissez les catégories</p>
         </div>
         <button
-          onClick={() =>
-            setEditingProduct({
-              cafeId: cafe?.id || 'a1b2c3d4-e5f6-7890-abcd-111111111111',
-              categoryId: categories[0]?.id || '',
-              name: '',
-              price: 4.500,
-              promoPrice: undefined,
-              badge: undefined,
-              isAvailable: true,
-              imageUrl: 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?auto=format&fit=crop&w=400&q=80',
-            })
-          }
+          onClick={openNewProduct}
           className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2.5 rounded-2xl flex items-center space-x-1.5 shadow-lg shadow-orange-500/20 transition-all active:scale-95"
         >
           <Plus className="w-4 h-4" />
@@ -126,19 +220,82 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
             </h3>
 
             {/* Category selection */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-400">Catégorie</label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-gray-400">Catégorie</label>
+                {!isCategoryFormOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCategoryFormOpen(true)}
+                    className="text-[11px] text-orange-400 hover:text-orange-300 font-semibold flex items-center space-x-1 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>+ Créer une catégorie</span>
+                  </button>
+                )}
+              </div>
+
               <select
-                value={editingProduct.categoryId}
-                onChange={(e) => setEditingProduct({ ...editingProduct, categoryId: e.target.value })}
-                className="w-full bg-gray-800 text-xs text-white p-3 rounded-xl border border-gray-700 focus:outline-none"
+                value={isCategoryFormOpen ? CREATE_CATEGORY_VALUE : (editingProduct.categoryId || '')}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                className="w-full bg-gray-800 text-xs text-white p-3 rounded-xl border border-gray-700 focus:outline-none focus:border-orange-500/50"
               >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
+                {categories.length === 0 ? (
+                  <option value="" disabled>
+                    Aucune catégorie disponible
                   </option>
-                ))}
+                ) : (
+                  categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      📁 {c.name}
+                    </option>
+                  ))
+                )}
+                <option value={CREATE_CATEGORY_VALUE}>➕ Ajouter une nouvelle catégorie...</option>
               </select>
+
+              {isCategoryFormOpen && (
+                <div className="p-3 bg-gray-800/90 border border-orange-500/40 rounded-2xl space-y-2 mt-2 shadow-inner">
+                  <div className="text-[11px] font-bold text-orange-400 flex items-center space-x-1">
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Créer une nouvelle catégorie</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void handleCreateCategory();
+                        }
+                      }}
+                      placeholder="Nom de la catégorie (ex: Jus Frais)"
+                      className="flex-1 bg-gray-900 text-xs text-white p-2.5 rounded-xl border border-gray-700 focus:outline-none focus:border-orange-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleCreateCategory()}
+                      disabled={!newCategoryName.trim() || isCreatingCategory}
+                      className="px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl disabled:opacity-50 transition-all"
+                    >
+                      {isCreatingCategory ? '...' : 'Ajouter'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCategoryFormOpen(false);
+                        setNewCategoryName('');
+                      }}
+                      className="px-3 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-bold rounded-xl transition-all"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Product Name */}
@@ -149,6 +306,7 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
                 required
                 value={editingProduct.name || ''}
                 onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                placeholder="Ex: Café Crème"
                 className="w-full bg-gray-800 text-xs text-white p-3 rounded-xl border border-gray-700 focus:outline-none"
               />
             </div>
@@ -157,7 +315,7 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
             <div className="space-y-1">
               <label className="text-xs font-semibold text-gray-400 flex items-center space-x-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Badge Special / Mise en Avant</span>
+                <span>Badge Spécial / Mise en Avant</span>
               </label>
               <select
                 value={editingProduct.badge || ''}
@@ -186,11 +344,16 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
                 <input
                   type="number"
                   step="0.100"
+                  min="0.001"
                   required
-                  value={editingProduct.price || 0}
+                  value={editingProduct.price ?? ''}
                   onChange={(e) =>
-                    setEditingProduct({ ...editingProduct, price: parseFloat(e.target.value) || 0 })
+                    setEditingProduct({
+                      ...editingProduct,
+                      price: e.target.value === '' ? undefined : Number(e.target.value),
+                    })
                   }
+                  placeholder="Ex: 3.500"
                   className="w-full bg-gray-800 text-xs text-white p-3 rounded-xl border border-gray-700 focus:outline-none"
                 />
               </div>
@@ -203,12 +366,13 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
                 <input
                   type="number"
                   step="0.100"
+                  min="0.001"
                   placeholder="Ex: 2.500"
-                  value={editingProduct.promoPrice || ''}
+                  value={editingProduct.promoPrice ?? ''}
                   onChange={(e) =>
                     setEditingProduct({
                       ...editingProduct,
-                      promoPrice: e.target.value ? parseFloat(e.target.value) : undefined,
+                      promoPrice: e.target.value === '' ? undefined : Number(e.target.value),
                     })
                   }
                   className="w-full bg-gray-800 text-xs text-white p-3 rounded-xl border border-gray-700 focus:outline-none placeholder:text-gray-600"
@@ -291,6 +455,9 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
                         <span className="font-bold text-white">{p.name}</span>
                         {renderBadgeTag(p.badge)}
                       </div>
+                      <span className="text-[10px] text-gray-400 font-medium block mt-0.5">
+                        📁 {categoryMap.get(p.categoryId) || 'Catégorie non spécifiée'}
+                      </span>
                     </div>
                   </td>
                   <td className="p-4">
@@ -324,7 +491,7 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
                   </td>
                   <td className="p-4 text-right">
                     <button
-                      onClick={() => setEditingProduct(p)}
+                      onClick={() => openEditProduct(p)}
                       className="p-2 text-gray-400 hover:text-white bg-gray-800/80 rounded-xl transition-all active:scale-95"
                     >
                       <Edit className="w-4 h-4" />
@@ -339,3 +506,4 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ cafeSlug }) => {
     </div>
   );
 };
+

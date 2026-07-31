@@ -33,6 +33,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
     const saved = localStorage.getItem(`activeWaiter_${cafeSlug}`);
     return saved ? JSON.parse(saved) : null;
   });
+  const [allWaiters, setAllWaiters] = useState<Waiter[]>([]);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(!activeWaiter);
   const [isZoneModalOpen, setIsZoneModalOpen] = useState<boolean>(false);
   const [isMyZoneOnly, setIsMyZoneOnly] = useState<boolean>(true);
@@ -105,11 +106,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
 
   const loadData = async () => {
     try {
-      const [orderList, callList, tableList, planList] = await Promise.all([
+      const [orderList, callList, tableList, planList, waiterList] = await Promise.all([
         api.getOrdersByCafe(cafeSlug),
         api.getServiceCalls(cafeSlug),
         api.getTablesByCafe(cafeSlug),
         api.getFloorPlans(cafeSlug),
+        api.getActiveWaiters(cafeSlug),
       ]);
       setOrders(Array.isArray(orderList) ? orderList.filter(Boolean) : []);
       setServiceCalls(Array.isArray(callList) ? callList.filter((c) => c && c.active) : []);
@@ -117,6 +119,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
       const obstacleLists = await Promise.all((planList || []).map((plan) => api.getFloorObstacles(plan.id)));
       setFloorObstacles(obstacleLists.flat());
       setTables(Array.isArray(tableList) ? tableList : []);
+
+      const validWaiters = Array.isArray(waiterList) ? waiterList : [];
+      setAllWaiters(validWaiters);
+
+      // Keep active logged-in waiter's table assignments in sync with Admin's assignments!
+      if (activeWaiter) {
+        const updatedSelf = validWaiters.find((w) => w.id === activeWaiter.id);
+        if (updatedSelf) {
+          setActiveWaiter(updatedSelf);
+          localStorage.setItem(`activeWaiter_${cafeSlug}`, JSON.stringify(updatedSelf));
+        }
+      }
     } catch (e) {
       console.error('Erreur chargement données', e);
     }
@@ -500,6 +514,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
           orders={orders}
           serviceCalls={serviceCalls}
           activeWaiter={activeWaiter}
+          waiters={allWaiters}
           isMyZoneOnly={isMyZoneOnly}
           onUpdateOrderStatus={handleUpdateStatus}
           onReleaseTable={handleReleaseTable}

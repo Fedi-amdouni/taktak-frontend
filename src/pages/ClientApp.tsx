@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { UtensilsCrossed, Music, ShoppingBag } from 'lucide-react';
+import { UtensilsCrossed, Music, ShoppingBag, Gamepad2 } from 'lucide-react';
 import { Header } from '../components/client/Header';
 import { MenuCatalog } from '../components/client/MenuCatalog';
 import { ProductModal } from '../components/client/ProductModal';
@@ -11,6 +11,12 @@ import { BillSplitterModal } from '../components/client/BillSplitterModal';
 import { ServiceModal } from '../components/client/ServiceModal';
 import { AmbianceView } from '../components/client/AmbianceView';
 import { UpsellModal } from '../components/customer/UpsellModal';
+import { ChkounYkhallesModal } from '../components/client/ChkounYkhallesModal';
+import { ConnectFourGame } from '../components/client/ConnectFourGame';
+import { EntertainmentHub, type EntertainmentGame } from '../components/client/EntertainmentHub';
+import { UnoGame } from '../components/client/UnoGame';
+import { PartyGame } from '../components/client/PartyGame';
+import { LudoGame } from '../components/client/LudoGame';
 import { useTableSession } from '../context/TableSessionContext';
 import { useCart } from '../context/CartContext';
 import { api } from '../services/api';
@@ -27,13 +33,16 @@ export const ClientApp: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
 
-  const [activeTab, setActiveTab] = useState<'menu' | 'ambiance'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'ambiance' | 'games'>('menu');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [upsellProduct, setUpsellProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isOrderTrackerOpen, setIsOrderTrackerOpen] = useState(false);
   const [isBillSplitterOpen, setIsBillSplitterOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+  const [isRouletteOpen, setIsRouletteOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<EntertainmentGame | null>(null);
+  const gameTableId = `${cafeSlug}-${tableNumber}`;
 
   useEffect(() => {
     // Initialize session and trigger table change detection
@@ -83,8 +92,10 @@ export const ClientApp: React.FC = () => {
             products={products}
             onSelectProduct={(p) => setSelectedProduct(p)}
           />
-        ) : (
+        ) : activeTab === 'ambiance' ? (
           <AmbianceView cafeSlug={cafeSlug} />
+        ) : (
+          selectedGame === 'connect-four' ? <ConnectFourGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'uno' ? <UnoGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'ludo' ? <LudoGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'quiz' || selectedGame === 'truth' ? <PartyGame tableId={gameTableId} mode={selectedGame} onBack={() => setSelectedGame(null)} /> : <EntertainmentHub onSelect={setSelectedGame} onRoulette={() => setIsRouletteOpen(true)} />
         )}
       </main>
 
@@ -99,6 +110,16 @@ export const ClientApp: React.FC = () => {
           >
             <UtensilsCrossed className="w-5 h-5" />
             <span className="text-[10px] font-bold">Menu</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('games'); setSelectedGame(null); }}
+            className={`flex flex-col items-center space-y-1 py-1 transition-all duration-300 ${
+              activeTab === 'games' ? 'text-amber-300 scale-[1.05]' : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            <Gamepad2 className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Jeux</span>
           </button>
 
           <button
@@ -149,6 +170,7 @@ export const ClientApp: React.FC = () => {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         onOrderCreated={() => setIsOrderTrackerOpen(true)}
+        onOpenRoulette={() => setIsRouletteOpen(true)}
       />
 
       {/* Real-time Order Tracker */}
@@ -169,6 +191,12 @@ export const ClientApp: React.FC = () => {
         tableNumber={tableNumber}
         isOpen={isServiceModalOpen}
         onClose={() => setIsServiceModalOpen(false)}
+      />
+
+      <ChkounYkhallesModal
+        isOpen={isRouletteOpen}
+        onClose={() => setIsRouletteOpen(false)}
+        tableId={gameTableId}
       />
     </div>
   );
