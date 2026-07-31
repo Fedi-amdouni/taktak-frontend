@@ -109,12 +109,25 @@ body::before {
   0%, 100% { box-shadow: 0 0 8px rgba(249, 115, 22, 0.15); }
   50% { box-shadow: 0 0 20px rgba(249, 115, 22, 0.3); }
 }
+@keyframes dice-roll {
+  0% { transform: rotate(0deg) scale(.8); }
+  25% { transform: rotate(100deg) scale(1.08); }
+  50% { transform: rotate(220deg) scale(.92); }
+  75% { transform: rotate(300deg) scale(1.08); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes token-hop {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  45% { transform: translate(-50%, -68%) scale(1.12); }
+}
 
 .animate-fadeIn { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
 .animate-scaleUp { animation: scaleUp 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
 .animate-slideUp { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-float { animation: float 3s ease-in-out infinite; }
 .animate-glow-pulse { animation: glow-pulse 2.5s ease-in-out infinite; }
+.animate-dice-roll { animation: dice-roll 0.72s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.animate-token-hop { animation: token-hop 0.52s ease-in-out; }
 .animate-shimmer {
   background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
   background-size: 200% 100%;
