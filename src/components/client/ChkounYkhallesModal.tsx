@@ -1,19 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { Dices, Users, X } from 'lucide-react';
-import { createGameSocket, gamePlayerId, type GameEvent } from '../../services/gameSocket';
+import { createGameSocket, gamePlayerId, getStoredGameName, rememberGameName, type GameEvent } from '../../services/gameSocket';
 
 interface Props { isOpen: boolean; onClose: () => void; tableId: string; }
 
 export const ChkounYkhallesModal: React.FC<Props> = ({ isOpen, onClose, tableId }) => {
   const socket = useRef<ReturnType<typeof createGameSocket> | null>(null);
-  const [name, setName] = useState(() => localStorage.getItem('taktak_game_name') || '');
+  const [name, setName] = useState(getStoredGameName);
   const [players, setPlayers] = useState<string[]>([]);
   const [spinning, setSpinning] = useState(false);
   const [loser, setLoser] = useState<string | null>(null);
   const wheel = players.length ? `conic-gradient(${players.map((_, index) => `${['#f97316','#fbbf24','#fb7185','#a78bfa','#38bdf8','#34d399'][index % 6]} ${(index / players.length) * 100}% ${((index + 1) / players.length) * 100}%`).join(',')})` : 'conic-gradient(#334155 0 100%)';
 
   useEffect(() => {
+    if (!isOpen) return;
     const handleEvent = (event: GameEvent) => {
       if (event.type === 'roulette_players') setPlayers(event.players || []);
       if (event.type === 'roulette_spin') {
@@ -27,15 +28,18 @@ export const ChkounYkhallesModal: React.FC<Props> = ({ isOpen, onClose, tableId 
         }, delay + 2800);
       }
     };
-    socket.current = createGameSocket(tableId, handleEvent);
+    socket.current = createGameSocket(tableId, handleEvent, () => {
+      const savedName = getStoredGameName();
+      if (savedName) socket.current?.send('roulette/join', { playerId: gamePlayerId, name: savedName });
+    });
     return () => { socket.current?.disconnect(); socket.current = null; };
-  }, [tableId]);
+  }, [tableId, isOpen]);
 
   const join = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    localStorage.setItem('taktak_game_name', trimmed);
-    socket.current?.send('roulette/join', { playerId: gamePlayerId, name: trimmed });
+    const savedName = rememberGameName(trimmed);
+    socket.current?.send('roulette/join', { playerId: gamePlayerId, name: savedName });
   };
 
   if (!isOpen) return null;

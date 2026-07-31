@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Play, Plus, RotateCcw } from 'lucide-react';
-import { createGameSocket, gamePlayerId, type GameEvent } from '../../services/gameSocket';
+import { createGameSocket, gamePlayerId, getStoredGameName, rememberGameName, type GameEvent } from '../../services/gameSocket';
 import { RoundGameTable } from './RoundGameTable';
 
 interface Props { tableId: string; onBack: () => void; }
@@ -8,9 +8,9 @@ const colorClass = (card?: string) => ({ RED:'from-red-500 to-red-700', BLUE:'fr
 const label = (card?: string) => card?.split(':')[1]?.replace('DRAW','+') || '?';
 
 export const UnoGame: React.FC<Props> = ({ tableId, onBack }) => {
-  const socket=useRef<ReturnType<typeof createGameSocket>|null>(null); const [name,setName]=useState(()=>localStorage.getItem('taktak_game_name')||''); const [state,setState]=useState<GameEvent>({type:'uno_state'}); const [hand,setHand]=useState<string[]>([]); const [wild,setWild]=useState<string|null>(null);
-  useEffect(()=>{ socket.current=createGameSocket(tableId,e=>{ if(e.type==='uno_state')setState(e); if(e.type==='uno_hand')setHand(e.unoHand||[]); },undefined,`/topic/table/${tableId}/game/uno/hand/${gamePlayerId}`); return()=>{void socket.current?.disconnect();}; },[tableId]);
-  const join=()=>{if(name.trim()){localStorage.setItem('taktak_game_name',name.trim());socket.current?.send('uno/join',{playerId:gamePlayerId,name:name.trim()});}};
+  const socket=useRef<ReturnType<typeof createGameSocket>|null>(null); const [name,setName]=useState(getStoredGameName); const [state,setState]=useState<GameEvent>({type:'uno_state'}); const [hand,setHand]=useState<string[]>([]); const [wild,setWild]=useState<string|null>(null);
+  useEffect(()=>{ socket.current=createGameSocket(tableId,e=>{ if(e.type==='uno_state')setState(e); if(e.type==='uno_hand')setHand(e.unoHand||[]); },()=>{const savedName=getStoredGameName();if(savedName)socket.current?.send('uno/join',{playerId:gamePlayerId,name:savedName});},`/topic/table/${tableId}/game/uno/hand/${gamePlayerId}`); return()=>{void socket.current?.disconnect();}; },[tableId]);
+  const join=()=>{const savedName=rememberGameName(name);if(savedName)socket.current?.send('uno/join',{playerId:gamePlayerId,name:savedName});};
   const players=state.unoPlayers||[]; const meTurn=state.unoTurnId===gamePlayerId; const winner=players.find(p=>p.id===state.unoWinner)?.name;
   const play=(card:string,color?:string)=>socket.current?.send('uno/play',{playerId:gamePlayerId,card,color});
   return <section className="mx-auto max-w-md space-y-3 p-4 pb-24"><button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-gray-300"><ArrowLeft className="h-4 w-4"/> Divertissement</button>

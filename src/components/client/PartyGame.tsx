@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Eye, MessageCircle, Play } from 'lucide-react';
-import { createGameSocket, gamePlayerId, type GameEvent } from '../../services/gameSocket';
+import { createGameSocket, gamePlayerId, getStoredGameName, rememberGameName, type GameEvent } from '../../services/gameSocket';
 import { RoundGameTable } from './RoundGameTable';
 
 interface Props { tableId: string; mode: 'quiz' | 'truth' | 'words'; onBack: () => void; }
@@ -12,11 +12,14 @@ const meta = {
 
 export const PartyGame: React.FC<Props> = ({ tableId, mode, onBack }) => {
   const socket = useRef<ReturnType<typeof createGameSocket> | null>(null);
-  const [name, setName] = useState(() => localStorage.getItem('taktak_game_name') || '');
+  const [name, setName] = useState(getStoredGameName);
   const [state, setState] = useState<GameEvent>({ type: 'party_state' });
 
   useEffect(() => {
-    socket.current = createGameSocket(tableId, event => event.type === 'party_state' && event.partyMode === mode && setState(event));
+    socket.current = createGameSocket(tableId, event => event.type === 'party_state' && event.partyMode === mode && setState(event), () => {
+      const savedName = getStoredGameName();
+      if (savedName) socket.current?.send('party/join', { mode, playerId: gamePlayerId, name: savedName });
+    });
     return () => { void socket.current?.disconnect(); };
   }, [tableId, mode]);
 
@@ -25,8 +28,8 @@ export const PartyGame: React.FC<Props> = ({ tableId, mode, onBack }) => {
   const myTurn = state.partyTurnId === gamePlayerId;
   const join = () => {
     if (!name.trim()) return;
-    localStorage.setItem('taktak_game_name', name.trim());
-    socket.current?.send('party/join', { mode, playerId: gamePlayerId, name: name.trim() });
+    const savedName = rememberGameName(name);
+    if (savedName) socket.current?.send('party/join', { mode, playerId: gamePlayerId, name: savedName });
   };
 
   return <section className="mx-auto max-w-md p-4 pb-24">

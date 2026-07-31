@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, RotateCcw, Trophy, Users } from 'lucide-react';
-import { createGameSocket, gamePlayerId, type GameEvent } from '../../services/gameSocket';
+import { createGameSocket, gamePlayerId, getStoredGameName, rememberGameName, type GameEvent } from '../../services/gameSocket';
 
 const emptyBoard = () => Array.from({ length: 6 }, () => Array(7).fill(0));
 interface Props { tableId: string; onBack: () => void; }
 
 export const ConnectFourGame: React.FC<Props> = ({ tableId, onBack }) => {
   const socket = useRef<ReturnType<typeof createGameSocket> | null>(null);
-  const [name, setName] = useState(() => localStorage.getItem('taktak_game_name') || '');
+  const [name, setName] = useState(getStoredGameName);
   const [board, setBoard] = useState<number[][]>(emptyBoard());
   const [red, setRed] = useState<GameEvent['redPlayer']>(null);
   const [yellow, setYellow] = useState<GameEvent['yellowPlayer']>(null);
@@ -21,11 +21,14 @@ export const ConnectFourGame: React.FC<Props> = ({ tableId, onBack }) => {
       setBoard(event.board || emptyBoard()); setRed(event.redPlayer || null); setYellow(event.yellowPlayer || null);
       setTurn(event.turn || 'RED'); setWinner(event.winner || null); setDraw(Boolean(event.draw));
     };
-    socket.current = createGameSocket(tableId, apply);
+    socket.current = createGameSocket(tableId, apply, () => {
+      const savedName = getStoredGameName();
+      if (savedName) socket.current?.send('connect-four/join', { playerId: gamePlayerId, name: savedName });
+    });
     return () => { socket.current?.disconnect(); socket.current = null; };
   }, [tableId]);
 
-  const join = () => { if (name.trim()) { localStorage.setItem('taktak_game_name', name.trim()); socket.current?.send('connect-four/join', { playerId: gamePlayerId, name: name.trim() }); } };
+  const join = () => { const savedName = rememberGameName(name); if (savedName) socket.current?.send('connect-four/join', { playerId: gamePlayerId, name: savedName }); };
   const myColor = red?.id === gamePlayerId ? 'RED' : yellow?.id === gamePlayerId ? 'YELLOW' : null;
   const canPlay = Boolean(myColor && myColor === turn && !winner && !draw);
   const status = winner ? `${winner === 'RED' ? red?.name : yellow?.name} gagne !` : draw ? 'Match nul !' : !red || !yellow ? 'En attente de deux joueurs…' : `Tour de ${turn === 'RED' ? red.name : yellow.name}`;

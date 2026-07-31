@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Dices, Play, RotateCcw } from 'lucide-react';
-import { createGameSocket, gamePlayerId, type GameEvent } from '../../services/gameSocket';
+import { createGameSocket, gamePlayerId, getStoredGameName, rememberGameName, type GameEvent } from '../../services/gameSocket';
 import boardImage from '../../assets/ludo-board-reference.png';
 
 interface Props { tableId: string; onBack: () => void; }
@@ -30,11 +30,14 @@ const positionFor = (player: number, token: number, progress: number): Cell => {
 
 export const LudoGame: React.FC<Props> = ({ tableId, onBack }) => {
   const socket = useRef<ReturnType<typeof createGameSocket> | null>(null);
-  const [name, setName] = useState(() => localStorage.getItem('taktak_game_name') || '');
+  const [name, setName] = useState(getStoredGameName);
   const [state, setState] = useState<GameEvent>({ type: 'ludo_state' });
 
   useEffect(() => {
-    socket.current = createGameSocket(tableId, event => event.type === 'ludo_state' && setState(event));
+    socket.current = createGameSocket(tableId, event => event.type === 'ludo_state' && setState(event), () => {
+      const savedName = getStoredGameName();
+      if (savedName) socket.current?.send('ludo/join', { playerId: gamePlayerId, name: savedName });
+    });
     return () => { void socket.current?.disconnect(); };
   }, [tableId]);
 
@@ -43,8 +46,8 @@ export const LudoGame: React.FC<Props> = ({ tableId, onBack }) => {
   const winner = players.find(player => player.id === state.ludoWinner)?.name;
   const join = () => {
     if (!name.trim()) return;
-    localStorage.setItem('taktak_game_name', name.trim());
-    socket.current?.send('ludo/join', { playerId: gamePlayerId, name: name.trim() });
+    const savedName = rememberGameName(name);
+    if (savedName) socket.current?.send('ludo/join', { playerId: gamePlayerId, name: savedName });
   };
 
   return <section className="mx-auto max-w-md space-y-4 p-4 pb-24">

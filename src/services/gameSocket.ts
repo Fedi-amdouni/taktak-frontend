@@ -47,6 +47,16 @@ const clientId = (() => {
 
 export const gamePlayerId = clientId;
 
+const GAME_NAME_KEY = 'taktak_game_name';
+
+export const getStoredGameName = () => localStorage.getItem(GAME_NAME_KEY)?.trim() || '';
+
+export const rememberGameName = (name: string) => {
+  const trimmed = name.trim();
+  if (trimmed) localStorage.setItem(GAME_NAME_KEY, trimmed);
+  return trimmed;
+};
+
 export const createGameSocket = (tableId: string, onEvent: (event: GameEvent) => void, onConnected?: () => void, extraTopic?: string) => {
   const wsUrl = import.meta.env.VITE_WS_URL
     ? import.meta.env.VITE_WS_URL.replace(/\/$/, '')
