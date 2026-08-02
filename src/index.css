@@ -134,6 +134,21 @@ body::before {
   animation: shimmer 2s ease-in-out infinite;
 }
 
+@keyframes card-deal {
+  0% { opacity: 0; transform: translateY(18px) rotate(4deg) scale(.94); }
+  70% { opacity: 1; transform: translateY(-3px) rotate(-1deg) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+}
+@keyframes scopa-pop {
+  0% { opacity: 0; transform: scale(.55) rotate(-8deg); }
+  45% { opacity: 1; transform: scale(1.08) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+.animate-card-deal { animation: card-deal .5s cubic-bezier(.2,.8,.2,1) both; }
+.animate-card-deal:nth-child(2) { animation-delay: .06s; }
+.animate-card-deal:nth-child(3) { animation-delay: .12s; }
+.animate-scopa-pop { animation: scopa-pop .45s cubic-bezier(.2,.8,.2,1) both; }
+
 /* Premium gradient text */
 .gradient-text {
   background: linear-gradient(135deg, #f97316 0%, #fbbf24 50%, #f97316 100%);

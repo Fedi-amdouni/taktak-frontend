@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRight, CircleDollarSign, Grid3X3, Layers3, Dices, Sparkles, Brain } from 'lucide-react';
 
-export type EntertainmentGame = 'connect-four' | 'uno' | 'quiz' | 'truth' | 'ludo';
+export type EntertainmentGame = 'connect-four' | 'uno' | 'quiz' | 'truth' | 'ludo' | 'chkobba' | 'rami';
 interface Props { onSelect: (game: EntertainmentGame) => void; onRoulette: () => void; }
 const games = [
   { id: 'connect-four' as const, title: 'Puissance 4', text: 'Duel à deux, en direct', icon: Grid3X3, color: 'from-blue-600 to-indigo-950' },
@@ -9,6 +9,8 @@ const games = [
   { id: 'quiz' as const, title: 'Quiz Tunisie', text: 'Culture, villes et café', icon: Brain, color: 'from-red-600 to-rose-950' },
   { id: 'truth' as const, title: 'Action ou Vérité', text: 'Ambiance garantie à 4', icon: Sparkles, color: 'from-purple-600 to-fuchsia-950' },
   { id: 'ludo' as const, title: 'Ludo Café', text: 'Course de pions à 4', icon: Dices, color: 'from-cyan-500 to-blue-950' },
+  { id: 'chkobba' as const, title: 'Chkobba', text: 'La scopa tounsia, à 2 à 4', icon: Layers3, color: 'from-amber-400 via-orange-600 to-rose-950' },
+  { id: 'rami' as const, title: 'Rami', text: 'Suites, brelans et defausse', icon: Layers3, color: 'from-emerald-500 via-teal-700 to-slate-950' },
 ];
 export const EntertainmentHub: React.FC<Props> = ({ onSelect, onRoulette }) => <section className="mx-auto max-w-md space-y-5 p-4 pb-24">
   <header><p className="text-xs font-bold uppercase tracking-[.22em] text-amber-300">À votre table</p><h1 className="mt-1 text-3xl font-black text-white">Divertissement</h1><p className="mt-2 text-sm text-gray-400">Choisissez un jeu, rejoignez le lobby, puis jouez ensemble.</p></header>

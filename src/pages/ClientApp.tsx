@@ -17,6 +17,8 @@ import { EntertainmentHub, type EntertainmentGame } from '../components/client/E
 import { UnoGame } from '../components/client/UnoGame';
 import { PartyGame } from '../components/client/PartyGame';
 import { LudoGame } from '../components/client/LudoGame';
+import { ChkobbaGame } from '../components/client/ChkobbaGame';
+import { RamiGame } from '../components/client/RamiGame';
 import { useTableSession } from '../context/TableSessionContext';
 import { useCart } from '../context/CartContext';
 import { api } from '../services/api';
@@ -95,7 +97,7 @@ export const ClientApp: React.FC = () => {
         ) : activeTab === 'ambiance' ? (
           <AmbianceView cafeSlug={cafeSlug} />
         ) : (
-          selectedGame === 'connect-four' ? <ConnectFourGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'uno' ? <UnoGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'ludo' ? <LudoGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'quiz' || selectedGame === 'truth' ? <PartyGame tableId={gameTableId} mode={selectedGame} onBack={() => setSelectedGame(null)} /> : <EntertainmentHub onSelect={setSelectedGame} onRoulette={() => setIsRouletteOpen(true)} />
+          selectedGame === 'connect-four' ? <ConnectFourGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'uno' ? <UnoGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'ludo' ? <LudoGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'chkobba' ? <ChkobbaGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'rami' ? <RamiGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'quiz' || selectedGame === 'truth' ? <PartyGame tableId={gameTableId} mode={selectedGame} onBack={() => setSelectedGame(null)} /> : <EntertainmentHub onSelect={setSelectedGame} onRoulette={() => setIsRouletteOpen(true)} />
         )}
       </main>
 

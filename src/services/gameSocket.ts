@@ -1,8 +1,10 @@
 import { Client } from '@stomp/stompjs';
 
 export type ConnectFourPlayer = { id: string; name: string } | null;
+export type ChkobbaCard = { id: string; suit: 'DINARI' | 'KOPPA' | 'SABRES' | 'BASTONI'; rank: string; value: number };
+export type RamiMeld = { type: 'set' | 'run'; cards: ChkobbaCard[] };
 export type GameEvent = {
-  type: 'roulette_players' | 'roulette_spin' | 'connect_four_state' | 'uno_state' | 'uno_hand' | 'party_state' | 'ludo_state';
+  type: 'roulette_players' | 'roulette_spin' | 'connect_four_state' | 'uno_state' | 'uno_hand' | 'party_state' | 'ludo_state' | 'chkobba_state' | 'chkobba_hand' | 'rami_state' | 'rami_hand';
   players?: string[];
   loser?: string;
   startsAt?: number;
@@ -34,6 +36,39 @@ export type GameEvent = {
   ludoDice?: number | null;
   ludoStarted?: boolean;
   ludoCanRoll?: boolean;
+  chkobbaPlayers?: Array<{ id: string; name: string }>;
+  chkobbaTable?: ChkobbaCard[];
+  chkobbaHand?: ChkobbaCard[];
+  chkobbaTurnId?: string;
+  chkobbaWinner?: string;
+  chkobbaStarted?: boolean;
+  chkobbaTargetScore?: 11 | 21;
+  chkobbaBotEnabled?: boolean;
+  chkobbaScores?: Record<string, number>;
+  chkobbaCapturedCounts?: Record<string, number>;
+  chkobbaScopaCounts?: Record<string, number>;
+  chkobbaRoundScores?: Record<string, number>;
+  chkobbaLastRoundScores?: Record<string, number>;
+  chkobbaLastRoundWinner?: string;
+  chkobbaLastMovePlayerId?: string;
+  chkobbaLastMoveCard?: ChkobbaCard | null;
+  chkobbaLastCaptureCount?: number;
+  chkobbaLastScopa?: boolean;
+  chkobbaDeckRemaining?: number;
+  chkobbaRound?: number;
+  chkobbaDealNumber?: number;
+  ramiPlayers?: Array<{ id: string; name: string }>;
+  ramiMelds?: RamiMeld[];
+  ramiDiscardTop?: ChkobbaCard | null;
+  ramiHand?: ChkobbaCard[];
+  ramiTurnId?: string;
+  ramiWinner?: string;
+  ramiStarted?: boolean;
+  ramiHasDrawn?: boolean;
+  ramiBotEnabled?: boolean;
+  ramiDeckRemaining?: number;
+  ramiRound?: number;
+  ramiHandCounts?: Record<string, number>;
 };
 
 const clientId = (() => {
