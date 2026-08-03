@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
-import { X, Plus, Minus, Check, MessageSquare, Sparkles, Star } from 'lucide-react';
-import { Product, ProductBadge, ProductOptionGroup } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { X, Plus, Minus, Check, MessageSquare, Sparkles, Star, Layers, UtensilsCrossed } from 'lucide-react';
+import { Product, ProductBadge, ProductOptionGroup, ComboSlot } from '../../types';
 
 interface ProductModalProps {
   product: Product | null;
+  allProducts?: Product[];
   onClose: () => void;
   onAddToCart: (product: Product, selectedOptions: Record<string, string>, quantity: number, notes?: string) => void;
 }
 
 export const ProductModal: React.FC<ProductModalProps> = ({
   product,
+  allProducts = [],
   onClose,
   onAddToCart,
 }) => {
@@ -22,6 +24,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     ? JSON.parse(product.optionsJson || '[]')
     : [];
 
+  // Parse combo slots
+  const comboSlots: ComboSlot[] = Array.isArray(product.comboSlotsJson)
+    ? product.comboSlotsJson
+    : typeof product.comboSlotsJson === 'string'
+    ? JSON.parse(product.comboSlotsJson || '[]')
+    : [];
+
+  const isCombo = product.isCombo || comboSlots.length > 0;
+
   // Default option choices
   const initialOptions: Record<string, string> = {};
   optionGroups.forEach((group) => {
@@ -30,16 +41,72 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     }
   });
 
+  // Default combo selections (pick first available product for each slot)
+  const initialComboSelections: Record<string, string[]> = {};
+  comboSlots.forEach((slot) => {
+    const slotProducts = allProducts.filter(
+      (p) => p.categoryId === slot.categoryId && p.isAvailable && p.id !== product.id
+    );
+    if (slotProducts.length > 0) {
+      // Pick first N products depending on requiredQuantity
+      const req = Math.min(slot.requiredQuantity || 1, slotProducts.length);
+      initialComboSelections[slot.id] = slotProducts.slice(0, req).map((p) => p.name);
+    } else {
+      initialComboSelections[slot.id] = [];
+    }
+  });
+
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(initialOptions);
+  const [comboSelections, setComboSelections] = useState<Record<string, string[]>>(initialComboSelections);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    setSelectedOptions(initialOptions);
+    setComboSelections(initialComboSelections);
+    setQuantity(1);
+    setNotes('');
+  }, [product?.id]);
 
   const handleSelectOption = (groupName: string, choice: string) => {
     setSelectedOptions((prev) => ({ ...prev, [groupName]: choice }));
   };
 
+  const handleSelectComboProduct = (slot: ComboSlot, productName: string) => {
+    setComboSelections((prev) => {
+      const current = prev[slot.id] || [];
+      const requiredQty = slot.requiredQuantity || 1;
+
+      if (requiredQty === 1) {
+        return { ...prev, [slot.id]: [productName] };
+      }
+
+      // Multi-select mode for requiredQuantity > 1
+      if (current.includes(productName)) {
+        return { ...prev, [slot.id]: current.filter((p) => p !== productName) };
+      } else {
+        if (current.length < requiredQty) {
+          return { ...prev, [slot.id]: [...current, productName] };
+        } else {
+          // Replace last element
+          return { ...prev, [slot.id]: [...current.slice(1), productName] };
+        }
+      }
+    });
+  };
+
   const handleAdd = () => {
-    onAddToCart(product, selectedOptions, quantity, notes);
+    // Merge combo selections into final options for cart & order tracking
+    const finalOptions: Record<string, string> = { ...selectedOptions };
+
+    comboSlots.forEach((slot) => {
+      const chosen = comboSelections[slot.id] || [];
+      if (chosen.length > 0) {
+        finalOptions[slot.title] = chosen.join(', ');
+      }
+    });
+
+    onAddToCart(product, finalOptions, quantity, notes);
     onClose();
   };
 
@@ -55,6 +122,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const totalPrice = unitPrice * quantity;
 
   const renderBadge = (badge?: ProductBadge) => {
+    if (isCombo || badge === 'BREAKFAST' || badge === 'COMBO') {
+      return (
+        <span className="inline-flex items-center text-xs font-extrabold text-amber-300 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-amber-500/40 shadow-lg">
+          🥐 Formule Petit-Déjeuner
+        </span>
+      );
+    }
     if (!badge) return null;
     switch (badge) {
       case 'BEST_SELLER':
@@ -95,7 +169,10 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-overlay animate-fadeIn">
-      <div className="w-full max-w-md bg-[#0d0f18] border border-white/[0.06] rounded-t-[28px] sm:rounded-[28px] max-h-[92vh] overflow-y-auto no-scrollbar flex flex-col shadow-2xl animate-slideUp">
+      <div className="w-full max-w-md bg-[#0d0f18] border border-white/[0.06] rounded-t-[32px] sm:rounded-[28px] max-h-[92vh] overflow-y-auto no-scrollbar flex flex-col shadow-2xl animate-slideUp relative">
+        {/* Mobile Drag Handle */}
+        <div className="w-12 h-1.5 bg-white/30 rounded-full mx-auto my-2 sm:hidden absolute top-2 left-1/2 -translate-x-1/2 z-30 cursor-pointer" onClick={onClose} />
+
         {/* Header Image with gradient overlay */}
         <div className="relative h-56 w-full bg-gray-900 overflow-hidden">
           {product.imageUrl ? (
@@ -108,11 +185,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           )}
 
           {/* Badge Overlay */}
-          {product.badge && (
-            <div className="absolute top-4 left-4">
-              {renderBadge(product.badge)}
-            </div>
-          )}
+          <div className="absolute top-4 left-4">
+            {renderBadge(product.badge)}
+          </div>
 
           <button
             onClick={onClose}
@@ -126,13 +201,90 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         <div className="p-5 flex-1 space-y-5 -mt-4 relative z-10">
           <div>
             <h2 className="text-xl font-extrabold text-white tracking-tight">{product.name}</h2>
-            <p className="text-lg font-extrabold mt-1.5">
-              <span className="gradient-text">{product.price.toFixed(3)}</span>
-              <span className="text-xs text-gray-500 ml-1.5 font-semibold">TND</span>
-            </p>
+            {product.description && (
+              <p className="text-xs text-gray-300/90 mt-1 font-medium bg-white/[0.03] p-3 rounded-2xl border border-white/[0.06] leading-relaxed">
+                {product.description}
+              </p>
+            )}
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-lg font-extrabold">
+                <span className="gradient-text">{product.price.toFixed(3)}</span>
+                <span className="text-xs text-gray-500 ml-1.5 font-semibold">TND</span>
+              </p>
+              {product.prepTimeMinutes && (
+                <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-3 py-1 rounded-xl border border-amber-500/20 flex items-center gap-1">
+                  ⏱️ Temps estimé : ~{product.prepTimeMinutes} min
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Option Groups */}
+          {/* DYNAMIC COMBO / PETIT-DEJEUNER CHOICES */}
+          {isCombo && comboSlots.length > 0 && (
+            <div className="space-y-4 pt-2">
+              <div className="divider-gradient" />
+              <div className="flex items-center space-x-1.5 text-xs font-extrabold text-amber-400 uppercase tracking-widest">
+                <UtensilsCrossed className="w-4 h-4" />
+                <span>Composition de votre Formule</span>
+              </div>
+
+              {comboSlots.map((slot) => {
+                const slotProducts = allProducts.filter(
+                  (p) => p.categoryId === slot.categoryId && p.isAvailable && p.id !== product.id
+                );
+                const currentSelections = comboSelections[slot.id] || [];
+
+                return (
+                  <div key={slot.id} className="space-y-2 bg-white/[0.02] p-3.5 rounded-2xl border border-white/[0.05]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold text-white">{slot.title}</span>
+                      <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                        {slot.requiredQuantity} au choix
+                      </span>
+                    </div>
+
+                    {slotProducts.length === 0 ? (
+                      <p className="text-[11px] text-gray-500 italic py-2">
+                        Aucun produit disponible pour ce choix pour le moment.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        {slotProducts.map((p) => {
+                          const isChosen = currentSelections.includes(p.name);
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => handleSelectComboProduct(slot, p.name)}
+                              className={`p-2.5 rounded-xl border flex items-center justify-between text-left transition-all ${
+                                isChosen
+                                  ? 'bg-amber-500/20 border-amber-500/50 text-white font-bold shadow-md shadow-amber-500/10'
+                                  : 'bg-white/[0.03] border-white/[0.06] text-gray-400 hover:text-white'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-2 truncate">
+                                {p.imageUrl && (
+                                  <img src={p.imageUrl} alt={p.name} className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
+                                )}
+                                <span className="text-xs truncate">{p.name}</span>
+                              </div>
+                              {isChosen && (
+                                <div className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0">
+                                  <Check className="w-2.5 h-2.5" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Standard Option Groups */}
           {optionGroups.length > 0 && <div className="divider-gradient" />}
           {optionGroups.map((group) => (
             <div key={group.name} className="space-y-2.5">

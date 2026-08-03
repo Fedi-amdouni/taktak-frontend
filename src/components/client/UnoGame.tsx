@@ -50,8 +50,16 @@ export const UnoGame: React.FC<Props> = ({ tableId, onBack }) => {
   const winner = players.find(player => player.id === state.unoWinner)?.name;
   const play = (card: string, color?: string) => socket.current?.send('uno/play', { playerId: gamePlayerId, card, color });
 
+  const leaveGame = () => {
+    socket.current?.send('uno/leave', { playerId: gamePlayerId });
+    onBack();
+  };
+
   return <section className="mx-auto max-w-md space-y-3 p-4 pb-24">
-    <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-gray-300"><ArrowLeft className="h-4 w-4" /> Divertissement</button>
+    <div className="flex items-center justify-between">
+      <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-gray-300"><ArrowLeft className="h-4 w-4" /> Divertissement</button>
+      <button onClick={leaveGame} className="flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-all">🚪 Quitter la table</button>
+    </div>
     <div className="rounded-[30px] border border-white/10 bg-[#10131d] p-4 shadow-2xl">
       <div className="flex items-center justify-between">
         <div><h2 className="text-2xl font-black tracking-tight text-white">UNO <span className="text-yellow-300">TABLE</span></h2><p className="text-xs text-gray-400">{players.length}/4 joueurs</p></div>

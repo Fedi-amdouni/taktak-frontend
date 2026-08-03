@@ -23,6 +23,8 @@ export type GameEvent = {
   unoStarted?: boolean;
   partyPlayers?: Array<{ id: string; name: string }>;
   partyMode?: 'quiz' | 'truth' | 'words';
+  partyTheme?: 'intimate' | 'social' | 'friends' | 'future';
+  partyChoice?: 'truth' | 'action' | null;
   partyTurnId?: string;
   partyPrompt?: string;
   partyAnswer?: string;

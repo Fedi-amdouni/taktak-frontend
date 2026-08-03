@@ -153,6 +153,7 @@ export const ClientApp: React.FC = () => {
       {/* Item Customization Modal */}
       <ProductModal
         product={selectedProduct}
+        allProducts={products}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={handleAddToCart}
       />

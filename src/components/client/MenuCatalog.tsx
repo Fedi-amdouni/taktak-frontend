@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Coffee, Sparkles, Star, Tag } from 'lucide-react';
 import { Category, Product, ProductBadge } from '../../types';
+import { formatPrice } from '../../utils/formatPrice';
 
 interface MenuCatalogProps {
   categories: Category[];
@@ -63,6 +64,13 @@ export const MenuCatalog: React.FC<MenuCatalogProps> = ({
     }
     if (!badge) return null;
     switch (badge) {
+      case 'BREAKFAST':
+      case 'COMBO':
+        return (
+          <span className="inline-flex items-center text-[9px] font-extrabold text-amber-300 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-2 py-0.5 rounded-full border border-amber-500/30">
+            🥐 Formule Petit-Déjeuner
+          </span>
+        );
       case 'BEST_SELLER':
         return (
           <span className="inline-flex items-center text-[9px] font-extrabold text-orange-300 bg-gradient-to-r from-orange-500/20 to-red-500/20 px-2 py-0.5 rounded-full border border-orange-500/30">
@@ -241,11 +249,16 @@ export const MenuCatalog: React.FC<MenuCatalogProps> = ({
                 {/* Info */}
                 <div className="flex-1 min-w-0 space-y-1">
                   {/* Badges line */}
-                  <div className="flex items-center space-x-1.5 flex-wrap">
+                  <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                     {renderBadge(product.badge, Boolean(hasPromo))}
+                    {product.prepTimeMinutes && (
+                      <span className="inline-flex items-center text-[9px] text-amber-300 font-bold bg-amber-500/[0.08] px-2 py-0.5 rounded-full border border-amber-500/20">
+                        ⏱️ ~{product.prepTimeMinutes} min
+                      </span>
+                    )}
                     {product.optionsJson && (
-                      <span className="inline-flex items-center text-[9px] text-amber-400/90 font-bold bg-amber-500/[0.08] px-2 py-0.5 rounded-full border border-amber-500/15">
-                        <Sparkles className="w-2.5 h-2.5 mr-1" />
+                      <span className="inline-flex items-center text-[9px] text-gray-400 font-bold bg-white/[0.04] px-2 py-0.5 rounded-full border border-white/[0.06]">
+                        <Sparkles className="w-2.5 h-2.5 mr-1 text-amber-400" />
                         Option
                       </span>
                     )}
@@ -256,12 +269,12 @@ export const MenuCatalog: React.FC<MenuCatalogProps> = ({
                   <div className="flex items-baseline space-x-2">
                     {hasPromo && (
                       <span className="line-through text-xs text-gray-500 font-semibold">
-                        {Number(product.price).toFixed(3)}
+                        {formatPrice(product.price)}
                       </span>
                     )}
                     <p className="text-sm font-black">
                       <span className={hasPromo ? 'text-red-400 font-extrabold' : 'gradient-text'}>
-                        {Number(effectivePrice).toFixed(3)}
+                        {formatPrice(effectivePrice)}
                       </span>
                       <span className="text-[10px] text-gray-500 ml-1 font-semibold">TND</span>
                     </p>

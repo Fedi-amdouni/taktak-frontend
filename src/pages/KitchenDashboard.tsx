@@ -116,6 +116,12 @@ export const KitchenDashboard: React.FC = () => {
     }
   };
 
+  const [completedItems, setCompletedItems] = useState<Record<string, boolean>>({});
+
+  const toggleItemDone = (key: string) => {
+    setCompletedItems((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const pendingOrders = orders.filter((o) => o.status === 'RECEIVED');
   const preparingOrders = orders.filter((o) => o.status === 'PREPARING');
   const readyOrders = orders.filter((o) => o.status === 'READY');
@@ -258,23 +264,39 @@ export const KitchenDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Items List */}
+                {/* Items List with interactive completion toggle */}
                 <div className="space-y-2.5 flex-1">
-                  {order.items.map((item, idx) => (
-                    <div key={idx} className="p-3 bg-white/[0.03] rounded-2xl border border-white/[0.04]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-extrabold text-white">{item.productName}</span>
-                        <span className="text-xs font-black text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-lg border border-orange-500/20">
-                          x{item.quantity}
-                        </span>
+                  {order.items.map((item, idx) => {
+                    const itemKey = `${order.id}_${idx}`;
+                    const isDone = completedItems[itemKey];
+
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => toggleItemDone(itemKey)}
+                        className={`p-3 rounded-2xl border cursor-pointer transition-all duration-200 ${
+                          isDone
+                            ? 'bg-emerald-500/10 border-emerald-500/30 opacity-60'
+                            : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.04]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`text-sm font-extrabold ${isDone ? 'line-through text-emerald-300' : 'text-white'}`}>
+                            {isDone && '✓ '}
+                            {item.productName}
+                          </span>
+                          <span className="text-xs font-black text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-lg border border-orange-500/20">
+                            x{item.quantity}
+                          </span>
+                        </div>
+                        {item.notes && (
+                          <p className="text-[11px] font-medium text-amber-300/90 mt-1 italic bg-amber-500/10 p-1.5 rounded-xl border border-amber-500/15">
+                            💬 "{item.notes}"
+                          </p>
+                        )}
                       </div>
-                      {item.notes && (
-                        <p className="text-[11px] font-medium text-amber-300/90 mt-1 italic bg-amber-500/10 p-1.5 rounded-xl border border-amber-500/15">
-                          💬 "{item.notes}"
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Action Buttons */}
@@ -295,7 +317,7 @@ export const KitchenDashboard: React.FC = () => {
                       className="w-full bg-gradient-to-r from-orange-500 to-emerald-500 hover:from-orange-600 hover:to-emerald-600 text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-xl shadow-emerald-500/20 flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95"
                     >
                       <Bell className="w-4 h-4" />
-                      <span className="text-xs">Commande Prête (Appeler Serveur)</span>
+                      <span className="text-xs">Commande Prête (Aviser Salle)</span>
                     </button>
                   )}
 
@@ -303,7 +325,7 @@ export const KitchenDashboard: React.FC = () => {
                     <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center">
                       <span className="text-xs font-extrabold text-emerald-400 block flex items-center justify-center space-x-1.5">
                         <CheckCircle className="w-4 h-4" />
-                        <span>En attente de récupération par le serveur...</span>
+                        <span>En attente de prise en charge par l'équipe en salle...</span>
                       </span>
                     </div>
                   )}
@@ -311,14 +333,14 @@ export const KitchenDashboard: React.FC = () => {
                   {isPickedUp && (
                     <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-center">
                       <span className="text-xs font-extrabold text-blue-400 block">
-                        🏃‍♂️ Récupérée par le serveur - En cours de livraison à table
+                        🏃‍♂️ En cours de livraison à table
                       </span>
                     </div>
                   )}
 
                   {isServed && (
                     <div className="p-3 bg-white/[0.04] border border-white/[0.06] rounded-2xl text-center">
-                      <span className="text-xs font-bold text-gray-400">Servie à table par le serveur</span>
+                      <span className="text-xs font-bold text-gray-400">Servie à table par l'équipe salle</span>
                     </div>
                   )}
                 </div>

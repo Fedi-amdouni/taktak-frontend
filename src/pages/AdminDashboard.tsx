@@ -16,10 +16,10 @@ export const AdminDashboard: React.FC = () => {
   const tabs = [
     { key: 'analytics', label: 'Revenus & Analytics', icon: TrendingUp },
     { key: 'floorplan', label: 'Plan de Salle 2D', icon: Layout },
-    { key: 'waiter-analytics', label: 'Performance Serveurs', icon: Zap },
+    { key: 'waiter-analytics', label: 'Performance Équipe Salle', icon: Zap },
     { key: 'ambiance', label: 'Ambiance & Jukebox', icon: Music },
     { key: 'menu', label: 'Menu & Produits', icon: Coffee },
-    { key: 'waiters', label: 'Équipe & PINs', icon: Users },
+    { key: 'waiters', label: 'Équipe Salle & PINs', icon: Users },
     { key: 'qrcodes', label: 'QR Codes', icon: QrCode },
   ] as const;
 
@@ -60,7 +60,7 @@ export const AdminDashboard: React.FC = () => {
             rel="noreferrer"
             className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-3.5 py-2.5 rounded-xl shadow-lg shadow-orange-500/20 flex items-center space-x-1.5 transition-all duration-300"
           >
-            <span>Écran Staff</span>
+            <span>Écran Service en Salle</span>
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>

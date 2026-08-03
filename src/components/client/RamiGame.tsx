@@ -125,9 +125,17 @@ export const RamiGame: React.FC<Props> = ({ tableId, onBack }) => {
     : validMeld ? 'Belle combinaison : pose-la ou choisis une carte à défausser.'
     : 'Sélectionne une combinaison valide ou une carte à défausser.';
 
+  const leaveGame = () => {
+    socket.current?.send('rami/leave', { playerId: gamePlayerId });
+    onBack();
+  };
+
   return (
     <section className="mx-auto max-w-md space-y-4 p-4 pb-24">
-      <button onClick={onBack} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white/55 transition hover:text-white"><ArrowLeft className="h-4 w-4" /> Jeux</button>
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white/55 transition hover:text-white"><ArrowLeft className="h-4 w-4" /> Jeux</button>
+        <button onClick={leaveGame} className="flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-all">🚪 Quitter la table</button>
+      </div>
       <header className="relative overflow-hidden rounded-[28px] border border-[#d8a967]/25 bg-gradient-to-br from-[#17241f] via-[#101713] to-[#302018] p-5 shadow-2xl">
         <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#d8a967]/15 blur-2xl" />
         <div className="relative flex items-start justify-between gap-3">

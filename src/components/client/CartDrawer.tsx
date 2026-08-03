@@ -37,6 +37,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           productName: item.productName,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          selectedOptions: item.selectedOptions,
           notes: item.notes,
         })),
       });

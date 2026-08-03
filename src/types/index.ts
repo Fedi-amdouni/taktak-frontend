@@ -58,18 +58,32 @@ export interface ProductOptionGroup {
   choices: string[];
 }
 
-export type ProductBadge = 'BEST_SELLER' | 'CHEF_SUGGESTION' | 'SPICY' | 'NEW' | 'VEGETARIAN' | 'PROMO';
+export interface ComboSlot {
+  id: string;
+  title: string; // ex: "Choix de la boisson chaude", "Choix du jus", "Choix de la viennoiserie"
+  selectionType: 'CATEGORY' | 'SPECIFIC_PRODUCTS';
+  categoryId?: string; // ID of the category dynamically bound (e.g. ID of "Boissons Chaudes")
+  allowedProductIds?: string[];
+  requiredQuantity: number; // e.g. 1 or 2
+  isOptional?: boolean;
+}
+
+export type ProductBadge = 'BEST_SELLER' | 'CHEF_SUGGESTION' | 'SPICY' | 'NEW' | 'VEGETARIAN' | 'PROMO' | 'BREAKFAST' | 'COMBO';
 
 export interface Product {
   id: string;
   cafeId: string;
   categoryId: string;
   name: string;
+  description?: string;
   price: number;
   promoPrice?: number;
   isAvailable: boolean;
   imageUrl?: string;
   optionsJson?: string | ProductOptionGroup[];
+  isCombo?: boolean;
+  comboSlotsJson?: string | ComboSlot[];
+  prepTimeMinutes?: number;
   suggestedProducts?: Product[];
   badge?: ProductBadge;
 }
@@ -92,6 +106,7 @@ export interface OrderItem {
   productName: string;
   quantity: number;
   unitPrice: number;
+  selectedOptions?: Record<string, string>;
   notes?: string;
 }
 
@@ -116,6 +131,7 @@ export interface CreateOrderPayload {
     productName: string;
     quantity: number;
     unitPrice: number;
+    selectedOptions?: Record<string, string>;
     notes?: string;
   }[];
   totalPrice: number;

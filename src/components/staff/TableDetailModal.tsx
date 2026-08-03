@@ -58,8 +58,11 @@ export const TableDetailModal: React.FC<TableDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-sm glass-panel bg-gray-900 border border-gray-800 rounded-3xl p-5 shadow-2xl space-y-5">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md transition-all animate-fadeIn">
+      <div className="w-full max-w-md bg-[#0e111a] border border-white/[0.12] rounded-t-[32px] sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[88vh] sm:max-h-[90vh] overflow-y-auto relative animate-slideUp sm:animate-scaleUp">
+        {/* Mobile Sheet Handle */}
+        <div className="w-12 h-1.5 bg-white/20 hover:bg-white/40 rounded-full mx-auto mb-2 sm:hidden cursor-pointer" onClick={onClose} />
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 pb-3">
           <div className="flex items-center space-x-3">
@@ -115,12 +118,34 @@ export const TableDetailModal: React.FC<TableDetailModalProps> = ({
             <div className="bg-gray-950/80 p-3 rounded-2xl border border-gray-800 max-h-48 overflow-y-auto no-scrollbar space-y-2 text-xs">
               <p className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Commande #{order.id.slice(-6).toUpperCase()}</p>
               {order.items.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between text-gray-200 border-b border-gray-800/60 pb-1.5 last:border-0 last:pb-0">
-                  <div className="flex items-center">
-                    <span className="font-extrabold text-orange-400 mr-2">{item.quantity}x</span>
-                    <span>{item.productName}</span>
+                <div key={idx} className="border-b border-gray-800/60 pb-2.5 last:border-0 last:pb-0 space-y-1">
+                  <div className="flex items-center justify-between text-gray-200">
+                    <div className="flex items-center">
+                      <span className="font-extrabold text-orange-400 mr-2">{item.quantity}x</span>
+                      <span className="font-bold text-white">{item.productName}</span>
+                    </div>
+                    <span className="font-bold text-orange-400">{(item.unitPrice * item.quantity).toFixed(3)} TND</span>
                   </div>
-                  <span className="font-bold text-orange-400">{(item.unitPrice * item.quantity).toFixed(3)} TND</span>
+
+                  {/* Render Combo & Option Choices */}
+                  {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
+                    <div className="pl-6 space-y-1">
+                      {Object.entries(item.selectedOptions).map(([key, val]) => (
+                        <div key={key} className="flex items-center text-[10px] text-amber-300/90 font-medium">
+                          <span className="mr-1">👉</span>
+                          <span className="font-semibold text-gray-400 mr-1">{key}:</span>
+                          <span className="font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">{val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Render Item Notes */}
+                  {item.notes && (
+                    <div className="pl-6 text-[10px] text-gray-400 italic">
+                      📝 Remarque: <span className="text-gray-300 font-semibold">{item.notes}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Music, Trophy, CheckCircle2, Radio, Heart, Sparkles } from 'lucide-react';
+import { Music, Trophy, CheckCircle2, Radio, Heart, Sparkles, Plus } from 'lucide-react';
 import { AmbianceState } from '../../types';
 import { api } from '../../services/api';
 import { stompService } from '../../services/stompService';
@@ -23,6 +23,12 @@ export const AmbianceView: React.FC<AmbianceViewProps> = ({ cafeSlug }) => {
   const [loading, setLoading] = useState(true);
   const [votingPollOptId, setVotingPollOptId] = useState<string | null>(null);
   const [votingMusicOptId, setVotingMusicOptId] = useState<string | null>(null);
+
+  // Client Music Proposal State
+  const [isProposing, setIsProposing] = useState(false);
+  const [songTitle, setSongTitle] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState('Orientale');
+  const [isSubmittingMusic, setIsSubmittingMusic] = useState(false);
 
   const loadData = async () => {
     try {
@@ -59,7 +65,7 @@ export const AmbianceView: React.FC<AmbianceViewProps> = ({ cafeSlug }) => {
       const res = await api.votePoll(cafeSlug, optionId, voterSessionId);
       setState(res);
     } catch (err) {
-      console.error('Erreur vote match', err);
+      console.error('Erreur vote poll', err);
     } finally {
       setVotingPollOptId(null);
     }
@@ -78,131 +84,198 @@ export const AmbianceView: React.FC<AmbianceViewProps> = ({ cafeSlug }) => {
     }
   };
 
+  const handleProposeMusic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!songTitle.trim() || isSubmittingMusic) return;
+
+    setIsSubmittingMusic(true);
+    try {
+      const res = await api.proposeMusic(cafeSlug, songTitle.trim(), selectedGenre, voterSessionId);
+      setState(res);
+      setSongTitle('');
+      setIsProposing(false);
+    } catch (err) {
+      alert('Erreur lors de la proposition de musique. Veuillez réessayer.');
+    } finally {
+      setIsSubmittingMusic(false);
+    }
+  };
+
+  const hasVotedPoll = !!state?.userVotedPollOptionId;
+  const hasVotedMusic = !!state?.userVotedMusicOptionId;
+
   if (loading) {
     return (
-      <div className="text-center py-16 max-w-md mx-auto px-4">
-        <Sparkles className="w-10 h-10 text-orange-400 mx-auto animate-pulse mb-3" />
-        <p className="text-xs text-gray-400 font-semibold">Chargement de l'ambiance du lounge...</p>
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
       </div>
     );
   }
 
-  const poll = state?.activePoll;
-  const hasVotedPoll = !!state?.userVotedPollOptionId;
-  const hasVotedMusic = !!state?.userVotedMusicOptionId;
-
   return (
-    <div className="pb-28 max-w-md mx-auto px-4 pt-4 space-y-6 animate-fadeIn">
+    <div className="space-y-6 pb-20 max-w-lg mx-auto px-4">
       {/* Header Banner */}
-      <div className="glass-panel p-4 rounded-3xl border border-white/[0.08] relative overflow-hidden flex items-center justify-between">
+      <div className="glass-panel p-5 rounded-3xl border border-white/[0.08] shadow-2xl relative overflow-hidden">
+        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="flex items-center space-x-3">
-          <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl shadow-lg shadow-purple-500/25 text-white">
-            <Radio className="w-6 h-6 animate-pulse" />
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-amber-500/30 flex-shrink-0">
+            📻
           </div>
           <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-purple-400 block">
-              Direct Café Lounge
-            </span>
-            <h2 className="text-sm font-black text-white tracking-tight">Espace Ambiance & Live</h2>
+            <h2 className="text-base font-black text-white">Ambiance & Jukebox Live</h2>
+            <p className="text-xs text-gray-400 font-medium">
+              Proposez vos musiques préférées & votez pour le programme TV
+            </p>
           </div>
         </div>
-
-        <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          <span>En Direct</span>
-        </span>
       </div>
 
-      {/* SECTION 1: MATCH POLL */}
-      {poll && (
-        <div className="glass-panel p-5 rounded-3xl border border-white/[0.08] shadow-2xl space-y-4 relative overflow-hidden">
-          {/* Header */}
+      {/* SECTION 1: LIVE TV MATCH POLL (ADMIN MANAGED) */}
+      {state?.activePoll && (
+        <div className="glass-panel p-5 rounded-3xl border border-white/[0.08] shadow-2xl space-y-4 relative">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 text-amber-400">
               <Trophy className="w-5 h-5" />
-              <span className="text-xs font-black uppercase tracking-wider">Pronostic Match écran</span>
+              <span className="text-xs font-black uppercase tracking-wider">Programme TV & Match en Direct</span>
             </div>
-            <span className="text-[10px] font-extrabold text-gray-500 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/[0.06]">
-              {poll.totalVotes} votes
+            <span className="text-[10px] font-bold text-gray-500 bg-white/[0.05] px-2.5 py-1 rounded-full border border-white/[0.08]">
+              {state.activePoll.totalVotes} votes
             </span>
           </div>
 
-          <h3 className="text-sm font-black text-white leading-snug">{poll.title}</h3>
+          <h3 className="text-sm font-extrabold text-white">{state.activePoll.title}</h3>
 
-          {/* Options Grid */}
-          <div className="space-y-2.5">
-            {poll.options.map((opt) => {
-              const isMyChoice = state?.userVotedPollOptionId === opt.id;
-              const isSubmitting = votingPollOptId === opt.id;
+          {/* Poll Options Progress */}
+          <div className="space-y-3 pt-1">
+            {state.activePoll.options.map((option) => {
+              const isMyChoice = state?.userVotedPollOptionId === option.id;
+              const isSubmitting = votingPollOptId === option.id;
 
               return (
                 <div
-                  key={opt.id}
-                  onClick={() => !hasVotedPoll && handleVotePoll(opt.id)}
-                  className={`p-3.5 rounded-2xl border transition-all duration-300 relative overflow-hidden ${
-                    hasVotedPoll
-                      ? isMyChoice
-                        ? 'border-amber-500/50 bg-amber-500/10 shadow-lg shadow-amber-500/10'
-                        : 'border-white/[0.06] bg-white/[0.02]'
-                      : 'border-white/[0.08] bg-white/[0.04] hover:border-amber-500/40 hover:bg-white/[0.07] cursor-pointer active:scale-[0.98]'
+                  key={option.id}
+                  onClick={() => !hasVotedPoll && handleVotePoll(option.id)}
+                  className={`p-3.5 rounded-2xl border transition-all duration-300 relative overflow-hidden cursor-pointer ${
+                    isMyChoice
+                      ? 'bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-500/10'
+                      : hasVotedPoll
+                      ? 'bg-white/[0.02] border-white/[0.05] cursor-default'
+                      : 'bg-white/[0.04] border-white/[0.08] hover:border-amber-500/30 hover:bg-white/[0.06]'
                   }`}
                 >
-                  {/* Progress bar background fill if voted */}
-                  {hasVotedPoll && (
-                    <div
-                      className={`absolute top-0 left-0 bottom-0 transition-all duration-700 ease-out opacity-20 ${
-                        isMyChoice ? 'bg-amber-400' : 'bg-white'
-                      }`}
-                      style={{ width: `${Math.max(opt.percentage, 4)}%` }}
-                    />
-                  )}
+                  {/* Progress Fill Bar */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 bg-amber-500/10 transition-all duration-700 pointer-events-none"
+                    style={{ width: `${option.percentage}%` }}
+                  />
 
                   <div className="relative z-10 flex items-center justify-between">
-                    <span className="text-xs font-bold text-white flex items-center space-x-2">
-                      {isMyChoice && <CheckCircle2 className="w-4 h-4 text-amber-400 flex-shrink-0" />}
-                      <span>{opt.optionText}</span>
-                    </span>
+                    <div className="flex items-center space-x-2 min-w-0 pr-2">
+                      <span className="text-xs font-extrabold text-white truncate">{option.optionText}</span>
+                      {isMyChoice && (
+                        <span className="text-[10px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-full flex-shrink-0">
+                          Mon choix
+                        </span>
+                      )}
+                    </div>
 
-                    {hasVotedPoll ? (
-                      <span className="text-xs font-black text-amber-300 font-mono">
-                        {opt.percentage}% <span className="text-[10px] text-gray-500 font-normal">({opt.votesCount})</span>
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      <span className="text-xs font-mono font-extrabold text-amber-300">
+                        {isSubmitting ? '...' : `${option.percentage}%`}
                       </span>
-                    ) : (
-                      <span className="px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-xl text-[11px] font-extrabold border border-amber-500/20 transition-all">
-                        {isSubmitting ? 'Vote...' : 'Voter'}
-                      </span>
-                    )}
+                      <span className="text-[10px] text-gray-500 font-semibold">({option.votesCount})</span>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
-
-          {hasVotedPoll && (
-            <p className="text-[10px] text-emerald-400 font-bold text-center pt-1 flex items-center justify-center space-x-1">
-              <CheckCircle2 className="w-3 h-3" />
-              <span>Vote enregistré ! Les résultats se mettent à jour en temps réel.</span>
-            </p>
-          )}
         </div>
       )}
 
-      {/* SECTION 2: JUKEBOX MUSIC */}
+      {/* SECTION 2: CLIENT JUKEBOX MUSIC PROPOSAL & VOTING */}
       <div className="glass-panel p-5 rounded-3xl border border-white/[0.08] shadow-2xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 text-purple-400">
             <Music className="w-5 h-5" />
-            <span className="text-xs font-black uppercase tracking-wider">Jukebox & Musique Lounge</span>
+            <span className="text-xs font-black uppercase tracking-wider">Jukebox Participatif</span>
           </div>
-          <span className="text-[10px] font-bold text-gray-500">Choisissez la vibe</span>
+          <span className="text-[10px] font-bold text-purple-300 bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20">
+            Proposez & Votez
+          </span>
         </div>
 
         <p className="text-xs text-gray-400 font-medium">
-          Votez pour le style musical que vous souhaitez entendre dans le café pour le prochain morceau :
+          Suggérez une chanson ou un artiste pour l'ambiance du café et votez pour vos sons préférés :
         </p>
 
+        {/* Client Music Proposal Accordion / Card */}
+        <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/20 border border-purple-500/30 rounded-2xl p-4 space-y-3 shadow-inner">
+          <button
+            type="button"
+            onClick={() => setIsProposing(!isProposing)}
+            className="w-full flex items-center justify-between text-left font-extrabold text-xs text-purple-300 hover:text-purple-200 transition-colors"
+          >
+            <div className="flex items-center space-x-2">
+              <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
+              <span>➕ Proposer une musique ou un artiste</span>
+            </div>
+            <Plus className={`w-4 h-4 transition-transform duration-300 ${isProposing ? 'rotate-45 text-pink-400' : 'text-purple-400'}`} />
+          </button>
+
+          {isProposing && (
+            <form onSubmit={handleProposeMusic} className="space-y-3 pt-2 border-t border-purple-500/20 mt-2">
+              <div>
+                <label className="text-[11px] font-bold text-gray-300 block mb-1">Chanson / Artiste à proposer *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Fairouz - Kifak Inta, The Weeknd, Elissa..."
+                  value={songTitle}
+                  onChange={(e) => setSongTitle(e.target.value)}
+                  className="w-full bg-black/40 border border-purple-500/40 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-gray-300 block mb-1">Genre / Style Musical</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {['Orientale', 'Pop & Hits', 'Jazz & Lounge', 'Rai & Maghreb', 'Deep House', 'Rap & Urban'].map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setSelectedGenre(g)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                        selectedGenre === g
+                          ? 'bg-purple-500 text-white border-purple-400 shadow-md shadow-purple-500/30'
+                          : 'bg-white/5 text-gray-400 border-white/10 hover:border-purple-500/30'
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmittingMusic || !songTitle.trim()}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-lg shadow-purple-500/25 active:scale-95 transition-all flex items-center justify-center space-x-1.5"
+              >
+                <Music className="w-3.5 h-3.5" />
+                <span>{isSubmittingMusic ? 'Ajout en cours...' : '🎶 Soumettre ma musique au Jukebox'}</span>
+              </button>
+            </form>
+          )}
+        </div>
+
         {/* Music Options List */}
-        <div className="space-y-3">
+        <div className="space-y-3 pt-2">
+          <h4 className="text-xs font-bold text-gray-400 flex items-center justify-between">
+            <span>🔥 Musiques proposées en attente :</span>
+            <span className="text-[10px] text-purple-400 font-bold">{state?.musicOptions.length || 0} titres</span>
+          </h4>
+
           {state?.musicOptions.map((music, idx) => {
             const isMyChoice = state?.userVotedMusicOptionId === music.id;
             const isSubmitting = votingMusicOptId === music.id;

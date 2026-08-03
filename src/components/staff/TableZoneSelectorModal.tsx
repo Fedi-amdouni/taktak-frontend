@@ -21,8 +21,11 @@ export const TableZoneSelectorModal: React.FC<TableZoneSelectorModalProps> = ({
   const assignedTables = waiter.assignedTables || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay animate-fadeIn">
-      <div className="w-full max-w-md bg-[#0d0f18] border border-white/[0.08] rounded-3xl p-6 shadow-2xl space-y-5 animate-scaleUp">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn transition-all">
+      <div className="w-full max-w-md bg-[#0e111a] border border-white/[0.12] rounded-t-[32px] sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[88vh] sm:max-h-[90vh] overflow-y-auto relative animate-slideUp sm:animate-scaleUp">
+        {/* Mobile Sheet Handle */}
+        <div className="w-12 h-1.5 bg-white/20 hover:bg-white/40 rounded-full mx-auto mb-2 sm:hidden cursor-pointer" onClick={onClose} />
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
           <div className="flex items-center space-x-3">
@@ -31,7 +34,7 @@ export const TableZoneSelectorModal: React.FC<TableZoneSelectorModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-extrabold text-white">Ma Zone de Tables</h2>
-              <p className="text-xs text-gray-400 font-medium">Serveur : <span className="text-amber-400 font-bold">{waiter.name}</span></p>
+              <p className="text-xs text-gray-400 font-medium">Service en Salle : <span className="text-amber-400 font-bold">{waiter.name}</span></p>
             </div>
           </div>
           <button

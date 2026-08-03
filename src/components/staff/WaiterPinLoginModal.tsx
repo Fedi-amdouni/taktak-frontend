@@ -67,8 +67,8 @@ export const WaiterPinLoginModal: React.FC<WaiterPinLoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay animate-fadeIn">
-      <div className="w-full max-w-sm bg-[#0d0f18] border border-white/[0.08] rounded-3xl p-6 shadow-2xl space-y-6 relative overflow-hidden animate-scaleUp">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn transition-all">
+      <div className="w-full max-w-sm bg-[#0e111a] border border-white/[0.12] rounded-t-[32px] sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 relative overflow-hidden animate-slideUp sm:animate-scaleUp">
         {/* Glow decoration */}
         <div className="absolute -top-16 -left-16 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -77,7 +77,7 @@ export const WaiterPinLoginModal: React.FC<WaiterPinLoginModalProps> = ({
           <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center text-white mx-auto shadow-lg shadow-orange-500/25 animate-glow-pulse">
             <KeyRound className="w-7 h-7" />
           </div>
-          <h2 className="text-xl font-extrabold text-white tracking-tight">Connexion Serveur</h2>
+          <h2 className="text-xl font-extrabold text-white tracking-tight">Service en Salle - Connexion</h2>
           <p className="text-xs text-gray-400 font-medium">Entrez votre code PIN à 4 chiffres</p>
         </div>
 

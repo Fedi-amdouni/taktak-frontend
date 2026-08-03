@@ -263,4 +263,18 @@ export const api = {
       method: 'PUT',
     });
   },
+
+  proposeMusic: async (cafeSlug: string, title: string, genre: string | undefined, voterSessionId: string): Promise<AmbianceState> => {
+    return fetchJson<AmbianceState>(`${API_BASE}/v1/cafes/${cafeSlug}/ambiance/propose-music`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, genre, voterSessionId }),
+    });
+  },
+
+  deleteMusicOption: async (cafeSlug: string, musicOptionId: string): Promise<AmbianceState> => {
+    return fetchJson<AmbianceState>(`${API_BASE}/v1/cafes/${cafeSlug}/ambiance/music/${musicOptionId}`, {
+      method: 'DELETE',
+    });
+  },
 };

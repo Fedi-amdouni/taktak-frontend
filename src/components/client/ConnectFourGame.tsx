@@ -34,8 +34,16 @@ export const ConnectFourGame: React.FC<Props> = ({ tableId, onBack }) => {
   const canPlay = Boolean(myColor && myColor === turn && !winner && !draw);
   const status = winner ? `${winner === 'RED' ? red?.name : yellow?.name} gagne !` : draw ? 'Match nul !' : !red || !yellow ? 'En attente de deux joueurs…' : `Tour de ${turn === 'RED' ? red.name : yellow.name}`;
 
+  const leaveGame = () => {
+    socket.current?.send('connect-four/leave', { playerId: gamePlayerId });
+    onBack();
+  };
+
   return <section className="mx-auto max-w-md p-4 pb-24 space-y-4">
-    <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-gray-300"><ArrowLeft className="h-4 w-4"/> Divertissement</button>
+    <div className="flex items-center justify-between">
+      <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-gray-300"><ArrowLeft className="h-4 w-4"/> Divertissement</button>
+      <button onClick={leaveGame} className="flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-all">🚪 Quitter la table</button>
+    </div>
     <div className="rounded-[30px] border border-blue-400/20 bg-gradient-to-br from-[#141827] to-[#0b1020] p-5 shadow-xl"><div className="flex items-start justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-blue-300">Duel en direct</p><h2 className="text-2xl font-black text-white">Puissance 4</h2><p className="mt-1 text-xs text-gray-400">Alignez quatre jetons pour gagner.</p></div><div className="grid h-12 w-12 place-items-center rounded-2xl bg-yellow-300/10"><Trophy className="h-6 w-6 text-amber-300" /></div></div>
       <div className="mt-4 flex gap-2"><input value={name} onChange={e => setName(e.target.value)} placeholder="Votre prénom" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-amber-400" /><button onClick={join} className="rounded-xl bg-amber-400 px-3 text-xs font-black text-gray-950">Jouer</button></div>
       <div className="mt-4 grid grid-cols-2 gap-3"><div className={`rounded-2xl border p-3 ${turn==='RED'?'border-red-400 bg-red-500/15':'border-white/10 bg-white/5'}`}><p className="text-[9px] font-bold uppercase text-red-300">Joueur rouge</p><p className="truncate text-sm font-black text-white">{red?.name || 'En attente…'}</p></div><div className={`rounded-2xl border p-3 ${turn==='YELLOW'?'border-yellow-300 bg-yellow-300/15':'border-white/10 bg-white/5'}`}><p className="text-[9px] font-bold uppercase text-yellow-300">Joueur jaune</p><p className="truncate text-sm font-black text-white">{yellow?.name || 'En attente…'}</p></div></div></div>

@@ -66,10 +66,10 @@ export const StaffPortal: React.FC = () => {
         <div className="text-center space-y-2">
           <div className="inline-flex items-center space-x-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-lg">
             <ShieldCheck className="w-4 h-4" />
-            <span>Portail Espace Serveurs & Tablette</span>
+            <span>Portail Service en Salle & Tablette</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">TakTak Staff</h1>
-          <p className="text-xs text-gray-400">Sélectionnez votre établissement pour commencer votre shift</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">TakTak Salle</h1>
+          <p className="text-xs text-gray-400">Sélectionnez votre établissement pour démarrer votre service en salle</p>
         </div>
 
         {/* Cafe Selection List */}
@@ -111,7 +111,7 @@ export const StaffPortal: React.FC = () => {
                 <img src={selectedCafe.logoUrl} alt={selectedCafe.name} className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/20" />
                 <div>
                   <h2 className="text-sm font-bold text-white">{selectedCafe.name}</h2>
-                  <p className="text-[10px] text-orange-400 font-semibold">Shift Serveur</p>
+                  <p className="text-[10px] text-orange-400 font-semibold">Service en Salle</p>
                 </div>
               </div>
               <button

@@ -228,9 +228,17 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
             : 'À toi de jouer'
           : `Tour de ${activePlayer?.name || 'un joueur'}`;
 
+  const leaveGame = () => {
+    socket.current?.send('chkobba/leave', { playerId: gamePlayerId });
+    onBack();
+  };
+
   return (
     <section className="mx-auto max-w-md space-y-4 p-4 pb-24">
-      <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-gray-300 transition hover:text-white"><ArrowLeft className="h-4 w-4" /> Divertissement</button>
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-gray-300 transition hover:text-white"><ArrowLeft className="h-4 w-4" /> Divertissement</button>
+        <button onClick={leaveGame} className="flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-all">🚪 Quitter la table</button>
+      </div>
 
       <div className="relative overflow-hidden rounded-[28px] border border-[#f1c777]/25 bg-[linear-gradient(135deg,#182321,#101617)] p-5 shadow-[0_22px_55px_rgba(0,0,0,.26)]">
         <div className="pointer-events-none absolute -right-14 -top-16 h-40 w-40 rounded-full bg-[#d59b4b]/15 blur-3xl" />
@@ -320,9 +328,16 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
                 <span className="rounded-full bg-[#21130d]/75 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-[#f7dfb4] shadow-sm">Sur la table</span>
                 <span className="rounded-full bg-[#21130d]/75 px-3 py-1.5 text-[10px] font-black text-white/80">{table.length ? `${table.length} cartes` : 'Table vide'}</span>
               </div>
+
               <div className="mt-4 grid min-h-[170px] grid-cols-[62px_1fr] items-center gap-3">
                 <div className="relative flex h-[126px] items-center justify-center" aria-label={`${state.chkobbaDeckRemaining || 0} cartes dans le talon`}>
-                  {state.chkobbaDeckRemaining ? <><div className="absolute translate-x-1.5 translate-y-1.5 rotate-2 opacity-65"><CardBack small /></div><div className="relative -rotate-2"><CardBack small /></div><span className="absolute -bottom-1 rounded-full bg-[#21130d]/85 px-2 py-1 text-[9px] font-black text-[#f7dfb4]">{state.chkobbaDeckRemaining}</span></> : <span className="text-center text-[9px] font-black uppercase tracking-wider text-white/55">Talon vide</span>}
+                  {state.chkobbaDeckRemaining ? (
+                    <>
+                      <div className="absolute translate-x-1.5 translate-y-1.5 rotate-2 opacity-65"><CardBack small /></div>
+                      <div className="relative -rotate-2"><CardBack small /></div>
+                      <span className="absolute -bottom-1 rounded-full bg-[#21130d]/85 px-2 py-1 text-[9px] font-black text-[#f7dfb4]">{state.chkobbaDeckRemaining}</span>
+                    </>
+                  ) : <span className="text-center text-[9px] font-black uppercase tracking-wider text-white/55">Talon vide</span>}
                 </div>
                 <div className="flex min-h-[140px] flex-wrap items-center justify-center gap-x-1 gap-y-3 rounded-2xl py-2" onDragOver={event => event.preventDefault()} onDrop={dropOnTable}>
                   {table.length ? table.map((card, index) => {
@@ -333,19 +348,26 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
                   }) : <div className="grid place-items-center rounded-2xl bg-[#21130d]/45 px-6 py-5 text-center text-[#f7dfb4]"><Layers3 className="h-7 w-7" /><span className="mt-2 text-[10px] font-black uppercase tracking-widest">Mida fergha</span></div>}
                 </div>
               </div>
+
               {state.chkobbaLastScopa && <div className="pointer-events-none absolute inset-x-0 top-24 z-20 grid place-items-center"><div className="animate-scopa-pop rounded-full border border-[#fff3cf] bg-[#f1c777] px-5 py-2 text-sm font-black uppercase tracking-[.18em] text-[#27160e] shadow-[0_8px_25px_rgba(48,22,8,.35)]">Chkobba !</div></div>}
+
               <div role="status" aria-live="polite" className={`mt-3 rounded-2xl border px-4 py-3 text-center text-sm font-black shadow-sm transition ${myTurn ? 'border-[#f1c777]/70 bg-[#24140d]/88 text-[#fff1cf]' : 'border-white/15 bg-[#24140d]/75 text-white'}`}>
                 {status}
                 {state.chkobbaLastCaptureCount ? <span className="ml-1 text-xs font-bold text-[#ffd98f]">· {state.chkobbaLastCaptureCount} prise{state.chkobbaLastCaptureCount > 1 ? 's' : ''}</span> : null}
               </div>
+
               {selectedCard && myTurn && captureOptions.length > 0 && (
                 <div className="mt-3 animate-fadeIn rounded-2xl border border-[#f1c777]/45 bg-[#24140d]/88 px-3 py-2.5 text-center text-[11px] font-bold text-[#f7dfb4]">
                   Les prises possibles brillent : touche ou glisse vers {captureOptions.some(option => option.length > 1) ? 'les cartes à ramasser' : 'la carte à ramasser'}.
                 </div>
               )}
+
               <div className="mt-5 border-t border-[#f7dfb4]/30 pt-4">
                 <div className="flex items-center justify-between">
-                  <div><p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-[.18em] text-[#fff1cf]"><Users className="h-3 w-3" /> Tes cartes</p><p className="mt-1 text-xs font-semibold text-white/70">{myTurn ? selectedCard ? 'Touche la prise éclairée' : 'Touche une carte ou glisse-la sur la table' : 'En attendant ton tour'}</p></div>
+                  <div>
+                    <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-[.18em] text-[#fff1cf]"><Users className="h-3 w-3" /> Tes cartes</p>
+                    <p className="mt-1 text-xs font-semibold text-white/70">{myTurn ? selectedCard ? 'Touche la prise éclairée' : 'Touche une carte ou glisse-la sur la table' : 'En attendant ton tour'}</p>
+                  </div>
                   <span className="rounded-full bg-[#21130d]/75 px-2.5 py-1 text-[10px] font-black text-[#f7dfb4]">{hand.length} cartes</span>
                 </div>
                 <div className="no-scrollbar -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-4 pt-3">

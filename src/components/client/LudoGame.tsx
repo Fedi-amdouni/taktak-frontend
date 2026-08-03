@@ -108,8 +108,16 @@ export const LudoGame: React.FC<Props> = ({ tableId, onBack }) => {
     socket.current?.send('ludo/roll', { playerId: gamePlayerId });
   };
 
-  return <section className="mx-auto max-w-md space-y-4 p-4 pb-24">
-    <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-gray-300"><ArrowLeft className="h-4 w-4" /> Divertissement</button>
+  const leaveGame = () => {
+    socket.current?.send('ludo/leave', { playerId: gamePlayerId });
+    onBack();
+  };
+
+  return <section className="mx-auto max-w-md p-4 pb-24 space-y-3">
+    <div className="flex items-center justify-between">
+      <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-gray-300"><ArrowLeft className="h-4 w-4" /> Divertissement</button>
+      <button onClick={leaveGame} className="flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-all">🚪 Quitter la table</button>
+    </div>
     <div className="rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-900 p-5 shadow-xl">
       <p className="text-xs font-black uppercase tracking-[.2em] text-cyan-100">Classique à quatre</p>
       <h2 className="mt-1 text-2xl font-black text-white">Ludo Café</h2>
