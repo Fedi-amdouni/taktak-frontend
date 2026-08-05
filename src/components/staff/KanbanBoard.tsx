@@ -164,6 +164,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         requestWakeLock();
+        void loadData();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -222,13 +223,17 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
         }
 
         setServiceCalls((prev) => [incomingCall, ...prev.filter((c) => c.id !== incomingCall.id)]);
-      }
+      },
+      () => void loadData()
     );
+
+    const reconciliationTimer = window.setInterval(() => void loadData(), 10000);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('click', unlockAudio);
       if (wakeLockRef.current) wakeLockRef.current.release();
+      window.clearInterval(reconciliationTimer);
       unsubscribe();
     };
   }, [cafeSlug, soundEnabled, activeWaiter, isMyZoneOnly]);

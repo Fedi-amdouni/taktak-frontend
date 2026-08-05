@@ -1,4 +1,4 @@
-import { Client } from '@stomp/stompjs';
+import { Client, ReconnectionTimeMode } from '@stomp/stompjs';
 
 export type ConnectFourPlayer = { id: string; name: string } | null;
 export type ChkobbaCard = { id: string; suit: 'DINARI' | 'KOPPA' | 'SABRES' | 'BASTONI'; rank: string; value: number };
@@ -101,7 +101,10 @@ export const createGameSocket = (tableId: string, onEvent: (event: GameEvent) =>
   const pending: Array<{ action: string; body: object }> = [];
   const client = new Client({
     brokerURL: wsUrl,
-    reconnectDelay: 3000,
+    reconnectDelay: 1000,
+    maxReconnectDelay: 30000,
+    reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
+    connectionTimeout: 10000,
     onConnect: () => {
       client.subscribe(`/topic/table/${tableId}/game`, message => {
         try { onEvent(JSON.parse(message.body) as GameEvent); } catch { /* ignore malformed messages */ }

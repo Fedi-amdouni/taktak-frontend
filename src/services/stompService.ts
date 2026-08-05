@@ -1,4 +1,4 @@
-import { Client } from '@stomp/stompjs';
+import { Client, ReconnectionTimeMode } from '@stomp/stompjs';
 import { Order, ServiceCall, AmbianceState } from '../types';
 import { subscribeLocalOrders } from './api';
 
@@ -18,14 +18,18 @@ class StompWebSocketService {
   public connect(
     cafeSlug: string,
     onOrderReceived: (order: Order) => void,
-    onServiceCallReceived?: (call: ServiceCall) => void
+    onServiceCallReceived?: (call: ServiceCall) => void,
+    onConnected?: () => void
   ) {
     const wsUrl = getWebSocketUrl();
 
     try {
       this.client = new Client({
         brokerURL: wsUrl,
-        reconnectDelay: 3000,
+        reconnectDelay: 1000,
+        maxReconnectDelay: 30000,
+        reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
+        connectionTimeout: 10000,
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000,
         onConnect: () => {
@@ -47,6 +51,8 @@ class StompWebSocketService {
               }
             });
           }
+
+          onConnected?.();
         },
         onDisconnect: () => {
           this.isConnected = false;
@@ -66,12 +72,19 @@ class StompWebSocketService {
     });
   }
 
-  public subscribeAmbiance(cafeSlug: string, onAmbianceUpdated: (state: AmbianceState) => void) {
+  public subscribeAmbiance(
+    cafeSlug: string,
+    onAmbianceUpdated: (state: AmbianceState) => void,
+    onConnected?: () => void
+  ) {
     const wsUrl = getWebSocketUrl();
 
     const client = new Client({
       brokerURL: wsUrl,
-      reconnectDelay: 3000,
+      reconnectDelay: 1000,
+      maxReconnectDelay: 30000,
+      reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
+      connectionTimeout: 10000,
       onConnect: () => {
         client.subscribe(`/topic/ambiance/${cafeSlug}`, (message) => {
           if (message.body) {
@@ -83,6 +96,7 @@ class StompWebSocketService {
             }
           }
         });
+        onConnected?.();
       },
     });
 

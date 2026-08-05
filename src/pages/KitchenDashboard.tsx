@@ -94,11 +94,20 @@ export const KitchenDashboard: React.FC = () => {
           }
         });
       },
-      () => {}
+      () => {},
+      () => void loadOrders()
     );
+
+    const reconciliationTimer = window.setInterval(() => void loadOrders(), 10000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void loadOrders();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       if (wakeLockRef.current) wakeLockRef.current.release();
+      window.clearInterval(reconciliationTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       unsubscribe();
     };
   }, [cafeSlug, soundEnabled]);

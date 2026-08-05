@@ -51,9 +51,12 @@ export const AmbianceView: React.FC<AmbianceViewProps> = ({ cafeSlug }) => {
         userVotedPollOptionId: prev?.userVotedPollOptionId || updatedState.userVotedPollOptionId,
         userVotedMusicOptionId: prev?.userVotedMusicOptionId || updatedState.userVotedMusicOptionId,
       }));
-    });
+    }, () => void loadData());
+
+    const reconciliationTimer = window.setInterval(() => void loadData(), 15000);
 
     return () => {
+      window.clearInterval(reconciliationTimer);
       unsubscribe();
     };
   }, [cafeSlug, voterSessionId]);
