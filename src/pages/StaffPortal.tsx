@@ -38,6 +38,18 @@ export const StaffPortal: React.FC = () => {
     setErrorMsg('');
   };
 
+  const submitPin = async (candidate: string) => {
+    if (!selectedCafe) return;
+    try {
+      const waiter = await api.loginWaiter(selectedCafe.slug, candidate);
+      localStorage.setItem(`activeWaiter_${selectedCafe.slug}`, JSON.stringify(waiter));
+      navigate(`/staff/${selectedCafe.slug}`);
+    } catch {
+      setErrorMsg('Code PIN incorrect.');
+      setPinCode('');
+    }
+  };
+
   const handlePinDigit = (digit: string) => {
     if (pinCode.length < 4) {
       const nextPin = pinCode + digit;
@@ -45,8 +57,7 @@ export const StaffPortal: React.FC = () => {
       setErrorMsg('');
 
       if (nextPin.length === 4 && selectedCafe) {
-        // Auto check pin
-        navigate(`/staff/${selectedCafe.slug}`);
+        void submitPin(nextPin);
       }
     }
   };
@@ -169,12 +180,7 @@ export const StaffPortal: React.FC = () => {
               >
                 0
               </button>
-              <button
-                onClick={() => navigate(`/staff/${selectedCafe.slug}`)}
-                className="w-16 h-16 rounded-2xl bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/20 hover:bg-green-500 hover:text-white transition-all flex items-center justify-center mx-auto"
-              >
-                OK
-              </button>
+              <div className="w-16 h-16 rounded-2xl bg-white/[0.02] border border-white/[0.05] mx-auto" />
             </div>
           </div>
         )}

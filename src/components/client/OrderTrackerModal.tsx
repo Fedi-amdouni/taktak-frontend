@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Clock, ChefHat, CheckCircle2, MapPin, Sparkles, RefreshCw, Bell, UtensilsCrossed, Footprints, Check } from 'lucide-react';
+import { X, Clock, ChefHat, CheckCircle2, MapPin, Sparkles, RefreshCw, Bell, UtensilsCrossed, Footprints, Check, Ban, AlertTriangle } from 'lucide-react';
 import { Order, OrderStatus } from '../../types';
 import { api } from '../../services/api';
 import { stompService } from '../../services/stompService';
@@ -15,6 +15,10 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isArchived, setIsArchived] = useState<boolean>(false);
+  const [isCancelled, setIsCancelled] = useState<boolean>(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState<boolean>(false);
+  const [cancelling, setCancelling] = useState<boolean>(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const fetchLatestOrder = async () => {
     if (!activeOrderId) return;
@@ -22,9 +26,13 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
       const orders = await api.getOrdersByCafe(currentCafeSlug);
       const found = orders.find((o) => String(o.id).toLowerCase() === String(activeOrderId).toLowerCase());
       if (found) {
-        if (found.status === 'ARCHIVED' || found.status === 'CANCELLED') {
+        if (found.status === 'ARCHIVED') {
           setIsArchived(true);
           setActiveOrderId(null);
+        } else if (found.status === 'CANCELLED') {
+          setIsCancelled(true);
+          setActiveOrderId(null);
+          setOrder(null);
         } else {
           setOrder(found);
         }
@@ -37,6 +45,15 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
   };
 
   useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
     if (!isOpen || !activeOrderId) {
       setLoading(false);
       return;
@@ -44,14 +61,21 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
 
     setLoading(true);
     setIsArchived(false);
+    setIsCancelled(false);
+    setShowCancelConfirm(false);
+    setCancelError(null);
     fetchLatestOrder();
 
     const interval = setInterval(fetchLatestOrder, 2000);
 
     const unsubscribe = stompService.connect(currentCafeSlug, (updatedOrder) => {
       if (updatedOrder && String(updatedOrder.id).toLowerCase() === String(activeOrderId).toLowerCase()) {
-        if (updatedOrder.status === 'ARCHIVED' || updatedOrder.status === 'CANCELLED') {
+        if (updatedOrder.status === 'ARCHIVED') {
           setIsArchived(true);
+          setActiveOrderId(null);
+          setOrder(null);
+        } else if (updatedOrder.status === 'CANCELLED') {
+          setIsCancelled(true);
           setActiveOrderId(null);
           setOrder(null);
         } else {
@@ -70,6 +94,24 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   const currentStatus: OrderStatus = order?.status || 'RECEIVED';
+  const canCancel = currentStatus === 'RECEIVED';
+
+  const handleCancelOrder = async () => {
+    if (!activeOrderId) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await api.updateOrderStatus(activeOrderId, 'CANCELLED');
+      setIsCancelled(true);
+      setActiveOrderId(null);
+      setOrder(null);
+    } catch (err) {
+      setCancelError("La préparation a déjà démarré en cuisine ou la commande a changé de statut.");
+    } finally {
+      setCancelling(false);
+      setShowCancelConfirm(false);
+    }
+  };
 
   const getStepState = (stepStatus: OrderStatus) => {
     const statuses: OrderStatus[] = ['RECEIVED', 'PREPARING', 'READY', 'PICKED_UP', 'SERVED'];
@@ -83,8 +125,8 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-sm glass-panel bg-gray-900 border border-gray-800 rounded-3xl p-5 shadow-2xl space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div className="w-full max-w-sm glass-panel bg-gray-900 border border-gray-800 rounded-3xl p-5 shadow-2xl space-y-5 relative" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-800 pb-3">
           <div className="flex items-center space-x-2">
@@ -99,7 +141,26 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
           </button>
         </div>
 
-        {isArchived ? (
+        {isCancelled ? (
+          <div className="text-center py-8 space-y-4">
+            <div className="w-16 h-16 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mx-auto border border-red-500/30">
+              <Ban className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">Commande Annulée !</h3>
+              <p className="text-xs text-gray-400 mt-1">Votre commande a bien été annulée auprès de la cuisine.</p>
+            </div>
+            <button
+              onClick={() => {
+                setIsCancelled(false);
+                onClose();
+              }}
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-extrabold py-3 px-4 rounded-2xl text-xs transition-all shadow-lg shadow-orange-500/20"
+            >
+              Passer une Nouvelle Commande
+            </button>
+          </div>
+        ) : isArchived ? (
           <div className="text-center py-8 space-y-4">
             <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30 animate-bounce">
               <Check className="w-8 h-8" />
@@ -138,6 +199,13 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
                 </span>
               </div>
             </div>
+
+            {cancelError && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-3 rounded-2xl text-xs flex items-center space-x-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <span>{cancelError}</span>
+              </div>
+            )}
 
             {/* Live Timeline */}
             <div className="space-y-4 py-2">
@@ -254,6 +322,42 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
               </div>
             )}
 
+            {/* Cancel Order Section (Allowed if status is RECEIVED) */}
+            {canCancel && (
+              <div className="pt-1">
+                {showCancelConfirm ? (
+                  <div className="bg-red-500/10 border border-red-500/30 p-3.5 rounded-2xl space-y-3 animate-fadeIn">
+                    <p className="text-xs font-bold text-red-200 text-center">
+                      Voulez-vous vraiment annuler votre commande ?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setShowCancelConfirm(false)}
+                        className="py-2 px-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded-xl text-xs transition-all"
+                      >
+                        Conserver
+                      </button>
+                      <button
+                        disabled={cancelling}
+                        onClick={handleCancelOrder}
+                        className="py-2 px-3 bg-red-500 hover:bg-red-600 text-white font-extrabold rounded-xl text-xs transition-all shadow-md shadow-red-500/20 disabled:opacity-50"
+                      >
+                        {cancelling ? 'Annulation...' : 'Oui, annuler'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowCancelConfirm(true)}
+                    className="w-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-2.5 px-4 rounded-2xl text-xs transition-all flex items-center justify-center space-x-1.5"
+                  >
+                    <Ban className="w-4 h-4" />
+                    <span>Annuler ma commande</span>
+                  </button>
+                )}
+              </div>
+            )}
+
             <button
               onClick={onClose}
               className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-2xl text-xs transition-all"
@@ -266,3 +370,4 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
     </div>
   );
 };
+

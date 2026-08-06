@@ -2,8 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, BookOpen, Bot, Club, Coins, Diamond, Heart, Layers3, Play, Sparkles, Spade, Target, Trophy, Users, Zap } from 'lucide-react';
 import { createGameSocket, gamePlayerId, getStoredGameName, rememberGameName, type ChkobbaCard, type GameEvent } from '../../services/gameSocket';
 import { GameResultBanner } from './GameResultBanner';
+import { ConfirmLeaveModal } from './ConfirmLeaveModal';
 import woodTableTexture from '../../assets/chkobba-wood-table.webp';
 import cardBackTexture from '../../assets/chkobba-card-back.webp';
+import jackFemme from '../../assets/chkobba-jack-femme.png';
+import queenPrince from '../../assets/chkobba-queen-prince.png';
+import kingArtwork from '../../assets/chkobba-king.png';
+import ramiJoker from '../../assets/rami-joker.png';
 
 interface Props { tableId: string; onBack: () => void; }
 
@@ -12,16 +17,25 @@ const suitMeta = {
   KOPPA: { Icon: Heart, label: 'cœur', ink: 'text-[#c92636]', red: true },
   SABRES: { Icon: Spade, label: 'pique', ink: 'text-[#171717]', red: false },
   BASTONI: { Icon: Club, label: 'trèfle', ink: 'text-[#171717]', red: false },
+  JOKER: { Icon: Sparkles, label: 'joker', ink: 'text-[#171717]', red: false },
 };
 
 const playerColors = ['#f8b84e', '#67e8f9', '#fb7185', '#a78bfa'];
+const teamLabel = (teamId?: string) => teamId === 'TEAM_A' ? 'Équipe A' : teamId === 'TEAM_B' ? 'Équipe B' : 'Équipe';
 
 const cardLabel = (card: ChkobbaCard) => {
+  if (card.rank === 'JKR') return 'Joker';
   if (card.rank === 'A') return 'As';
-  if (card.rank === 'J') return 'Valet';
-  if (card.rank === 'Q') return 'Cavalier';
+  if (card.rank === 'J') return 'Femme';
+  if (card.rank === 'Q') return 'Prince';
   if (card.rank === 'K') return 'Roi';
   return card.rank;
+};
+
+const faceArtwork: Partial<Record<'J' | 'Q' | 'K', string>> = {
+  J: jackFemme,
+  Q: queenPrince,
+  K: kingArtwork,
 };
 
 const getCaptureOptions = (played: ChkobbaCard | null, table: ChkobbaCard[]) => {
@@ -68,6 +82,8 @@ export const CardFace: React.FC<{
   const numericRank = card.rank === 'A' ? 1 : Number(card.rank);
   const pips = pipLayouts[numericRank] || [];
   const isFaceCard = ['J', 'Q', 'K'].includes(card.rank);
+  const isJoker = card.rank === 'JKR';
+  const artwork = faceArtwork[card.rank as 'J' | 'Q' | 'K'];
   return (
     <button
       type="button"
@@ -77,22 +93,21 @@ export const CardFace: React.FC<{
       aria-label={`${cardLabel(card)} de ${meta.label}`}
       className={`group relative overflow-hidden rounded-[9px] border bg-[#fffdf8] text-left shadow-[0_7px_14px_rgba(24,12,5,.34)] transition duration-300 ${small ? 'h-[98px] w-[68px]' : 'h-[142px] min-w-[96px]'} ${selected ? 'z-10 -translate-y-3 border-[#e4b65f] ring-4 ring-[#f1c777]/45' : 'border-white/80 hover:-translate-y-2'} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
-      <span className={`absolute left-1.5 top-1.5 flex flex-col items-center font-serif font-black leading-none ${meta.ink}`}>
+      {!isJoker && <span className={`absolute left-1.5 top-1.5 flex flex-col items-center font-serif font-black leading-none ${meta.ink}`}>
         <span className={small ? 'text-sm' : 'text-lg'}>{card.rank}</span>
         <SuitIcon className={small ? 'mt-0.5 h-2.5 w-2.5 fill-current' : 'mt-0.5 h-3.5 w-3.5 fill-current'} strokeWidth={1.6} />
-      </span>
-      {isFaceCard ? (
-        <span className={`absolute inset-x-[23%] inset-y-[18%] flex flex-col items-center justify-center border-y-2 ${meta.red ? 'border-[#c92636]/30 bg-[#c92636]/[.055]' : 'border-black/20 bg-black/[.035]'} ${meta.ink}`}>
-          <span className={`${small ? 'text-2xl' : 'text-4xl'} font-serif font-black leading-none`}>{card.rank}</span>
-          <SuitIcon className={small ? 'mt-1 h-4 w-4 fill-current' : 'mt-1 h-6 w-6 fill-current'} strokeWidth={1.4} />
+      </span>}
+      {isJoker ? <span className="absolute inset-[8%] overflow-hidden"><img src={ramiJoker} alt="" draggable={false} className="h-full w-full object-contain mix-blend-multiply" /></span> : isFaceCard ? (
+        <span className={`absolute inset-x-[14%] inset-y-[13%] overflow-hidden border-y-2 ${meta.red ? 'border-[#c92636]/30 bg-[#c92636]/[.055]' : 'border-black/20 bg-black/[.035]'}`}>
+          {artwork && <img src={artwork} alt="" draggable={false} className="h-full w-full object-contain mix-blend-multiply" />}
         </span>
       ) : pips.map(([left, top], index) => (
         <SuitIcon key={`${left}-${top}-${index}`} className={`absolute fill-current ${small ? 'h-3.5 w-3.5' : 'h-5 w-5'} ${meta.ink}`} style={{ left: `${left}%`, top: `${top}%`, transform: `translate(-50%, -50%)${top > 50 ? ' rotate(180deg)' : ''}` }} strokeWidth={1.4} />
       ))}
-      <span className={`absolute bottom-1.5 right-1.5 flex rotate-180 flex-col items-center font-serif font-black leading-none ${meta.ink}`}>
+      {!isJoker && <span className={`absolute bottom-1.5 right-1.5 flex rotate-180 flex-col items-center font-serif font-black leading-none ${meta.ink}`}>
         <span className={small ? 'text-sm' : 'text-lg'}>{card.rank}</span>
         <SuitIcon className={small ? 'mt-0.5 h-2.5 w-2.5 fill-current' : 'mt-0.5 h-3.5 w-3.5 fill-current'} strokeWidth={1.6} />
-      </span>
+      </span>}
     </button>
   );
 };
@@ -107,11 +122,13 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
   const socket = useRef<ReturnType<typeof createGameSocket> | null>(null);
   const [name, setName] = useState(getStoredGameName);
   const [targetScore, setTargetScore] = useState<11 | 21>(11);
-  const [gameMode, setGameMode] = useState<'friends' | 'bot'>('friends');
+  const [gameMode, setGameMode] = useState<'individual' | 'teams' | 'bot'>('individual');
+  const [botPartnerId, setBotPartnerId] = useState<string | null>(null);
   const [state, setState] = useState<GameEvent>({ type: 'chkobba_state' });
   const [hand, setHand] = useState<ChkobbaCard[]>([]);
   const [selectedCard, setSelectedCard] = useState<ChkobbaCard | null>(null);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const draggedCard = useRef<ChkobbaCard | null>(null);
 
   useEffect(() => {
@@ -132,7 +149,9 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
       },
       `/topic/table/${tableId}/game/chkobba/hand/${gamePlayerId}`,
     );
-    return () => { void socket.current?.disconnect(); };
+    return () => {
+      void socket.current?.disconnect();
+    };
   }, [tableId]);
 
   const players = state.chkobbaPlayers || [];
@@ -144,6 +163,7 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
   const myTurn = state.chkobbaTurnId === gamePlayerId && !state.chkobbaWinner;
   const captureOptions = useMemo(() => getCaptureOptions(selectedCard, table), [selectedCard, table]);
   const lastRoundWinner = players.find(player => player.id === state.chkobbaLastRoundWinner);
+  const teamMode = started ? Boolean(state.chkobbaTeamMode) : gameMode === 'teams';
 
   const join = () => {
     const savedName = rememberGameName(name);
@@ -151,7 +171,12 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
   };
 
   const startGame = () => {
-    socket.current?.send('chkobba/start', { targetScore, botEnabled: gameMode === 'bot' });
+    if (gameMode === 'bot') {
+      socket.current?.send('chkobba/start', { targetScore, botEnabled: true, teamMode: false });
+    } else {
+      const needsBot = gameMode === 'teams' && players.length === 3;
+      socket.current?.send('chkobba/start', { targetScore, botEnabled: needsBot, teamMode: gameMode === 'teams', botPartnerId: needsBot ? botPartnerId : null });
+    }
   };
 
   const playMove = (card: ChkobbaCard, captureIds: string[]) => {
@@ -219,7 +244,7 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
   const status = state.chkobbaWinner
     ? `${winner?.name || 'Un joueur'} remporte la Chkobba !`
       : !started
-      ? gameMode === 'bot' ? 'Solo contre Bot Sirocco' : `${players.length}/4 joueurs à la table`
+      ? gameMode === 'teams' ? `${players.length}/4 joueurs · format 2v2` : `${players.length}/4 joueurs à la table`
       : !amIJoined
         ? 'Entre ton prénom pour rejoindre la partie'
         : myTurn
@@ -236,8 +261,8 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
   return (
     <section className="mx-auto max-w-md space-y-4 p-4 pb-24">
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-gray-300 transition hover:text-white"><ArrowLeft className="h-4 w-4" /> Divertissement</button>
-        <button onClick={leaveGame} className="flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-all">🚪 Quitter la table</button>
+        <button onClick={() => { if (started || amIJoined) setShowLeaveModal(true); else onBack(); }} className="flex items-center gap-1 text-sm font-bold text-gray-300 transition hover:text-white"><ArrowLeft className="h-4 w-4" /> Divertissement</button>
+        <button onClick={() => setShowLeaveModal(true)} className="flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-all">🚪 Quitter la table</button>
       </div>
 
       <div className="relative overflow-hidden rounded-[28px] border border-[#f1c777]/25 bg-[linear-gradient(135deg,#182321,#101617)] p-5 shadow-[0_22px_55px_rgba(0,0,0,.26)]">
@@ -271,14 +296,18 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
             <input value={name} onChange={event => setName(event.target.value)} onKeyDown={event => event.key === 'Enter' && join()} placeholder="Ton prénom" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-sm text-white outline-none" />
             <button onClick={join} className="rounded-xl bg-[#f1c777] px-4 text-xs font-black text-[#17201d] transition hover:bg-[#ffe09b]">Rejoindre</button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => setGameMode('friends')} className={`rounded-2xl border p-3 text-left transition ${gameMode === 'friends' ? 'border-[#f1c777]/70 bg-[#f1c777]/12' : 'border-white/10 bg-white/[.035] hover:border-white/20'}`}>
-              <span className="flex items-center gap-2 text-xs font-black text-white"><Users className="h-4 w-4 text-[#f1c777]" /> À plusieurs</span>
-              <span className="mt-1 block text-[10px] text-white/45">2 à 4 joueurs</span>
+          <div className="grid grid-cols-3 gap-2">
+            <button onClick={() => setGameMode('individual')} className={`rounded-2xl border p-2.5 text-left transition ${gameMode === 'individual' ? 'border-[#f1c777]/70 bg-[#f1c777]/12' : 'border-white/10 bg-white/[.035] hover:border-white/20'}`}>
+              <span className="flex items-center gap-1.5 text-xs font-black text-white"><Users className="h-3.5 w-3.5 text-[#f1c777]" /> Amis</span>
+              <span className="mt-0.5 block text-[9px] text-white/45">2 à 4 joueurs</span>
             </button>
-            <button onClick={() => setGameMode('bot')} className={`rounded-2xl border p-3 text-left transition ${gameMode === 'bot' ? 'border-[#f1c777]/70 bg-[#f1c777]/12' : 'border-white/10 bg-white/[.035] hover:border-white/20'}`}>
-              <span className="flex items-center gap-2 text-xs font-black text-white"><Bot className="h-4 w-4 text-[#f1c777]" /> Solo vs bot</span>
-              <span className="mt-1 block text-[10px] text-white/45">Bot Sirocco</span>
+            <button onClick={() => setGameMode('bot')} className={`rounded-2xl border p-2.5 text-left transition ${gameMode === 'bot' ? 'border-[#f1c777]/70 bg-[#f1c777]/12' : 'border-white/10 bg-white/[.035] hover:border-white/20'}`}>
+              <span className="flex items-center gap-1.5 text-xs font-black text-white"><Bot className="h-3.5 w-3.5 text-[#f1c777]" /> Solo Bot</span>
+              <span className="mt-0.5 block text-[9px] text-white/45">1v1 vs Bot</span>
+            </button>
+            <button onClick={() => setGameMode('teams')} className={`rounded-2xl border p-2.5 text-left transition ${gameMode === 'teams' ? 'border-[#f1c777]/70 bg-[#f1c777]/12' : 'border-white/10 bg-white/[.035] hover:border-white/20'}`}>
+              <span className="flex items-center gap-1.5 text-xs font-black text-white"><Sparkles className="h-3.5 w-3.5 text-[#f1c777]" /> 2v2</span>
+              <span className="mt-0.5 block text-[9px] text-white/45">Par équipes</span>
             </button>
           </div>
           <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/15 px-3 py-2.5">
@@ -298,7 +327,13 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
               </div>;
             })}
           </div>
-            <button onClick={startGame} disabled={gameMode === 'bot' ? players.length !== 1 : players.length < 2} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#f1c777] py-3.5 font-black text-[#17201d] shadow-lg shadow-[#d59b4b]/15 transition hover:bg-[#ffe09b] disabled:cursor-not-allowed disabled:opacity-35"><Play className="h-4 w-4" /> {gameMode === 'bot' ? 'Jouer contre Bot Sirocco' : 'Lancer la partie'}</button>
+          {gameMode === 'teams' && players.length === 3 && <div className="rounded-2xl border border-[#f1c777]/25 bg-[#f1c777]/[.07] p-3">
+            <p className="text-xs font-black text-[#ffe8b2]">Choisis le partenaire du bot</p>
+            <p className="mt-1 text-[10px] text-white/50">Le bot complète la quatrième place et joue dans l’équipe de la personne choisie.</p>
+            <div className="mt-3 grid grid-cols-3 gap-2">{players.map(player => <button key={player.id} onClick={() => setBotPartnerId(player.id)} className={`rounded-xl border px-2 py-2 text-[10px] font-black transition ${botPartnerId === player.id ? 'border-[#f1c777] bg-[#f1c777] text-[#17201d]' : 'border-white/10 bg-black/20 text-white/70'}`}>{player.name}</button>)}</div>
+          </div>}
+          {gameMode === 'teams' && <p className="rounded-2xl border border-white/10 bg-black/15 px-3 py-2 text-center text-[10px] font-semibold text-white/55">Il faut quatre places : 4 joueurs, ou 3 joueurs + Bot Sirocco.</p>}
+          <button onClick={startGame} disabled={gameMode === 'bot' ? players.length < 1 : gameMode === 'teams' ? !(players.length === 4 || (players.length === 3 && Boolean(botPartnerId))) : players.length < 2} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#f1c777] py-3.5 font-black text-[#17201d] shadow-lg shadow-[#d59b4b]/15 transition hover:bg-[#ffe09b] disabled:cursor-not-allowed disabled:opacity-35"><Play className="h-4 w-4" /> {gameMode === 'bot' ? 'Lancer en solo vs Bot' : gameMode === 'teams' ? players.length === 3 ? 'Ajouter le bot et lancer' : 'Lancer le 2v2' : 'Lancer la partie'}</button>
         </div>
       ) : (
         <>
@@ -306,15 +341,17 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
             {players.map((player, index) => {
               const isActive = player.id === state.chkobbaTurnId;
               const isWinner = player.id === state.chkobbaWinner;
+              const playerTeam = state.chkobbaTeamByPlayerId?.[player.id];
+              const displayedScore = teamMode && playerTeam ? state.chkobbaTeamScores?.[playerTeam] || 0 : state.chkobbaScores?.[player.id] || 0;
               return <div key={player.id} className={`relative overflow-hidden rounded-2xl border p-3 transition ${isActive ? 'border-amber-300/80 bg-amber-300/10 shadow-[0_0_24px_rgba(251,191,36,.13)]' : 'border-white/10 bg-white/[.035]'} ${isWinner ? 'ring-2 ring-emerald-300/70' : ''}`}>
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: playerColors[index] || playerColors[0], boxShadow: `0 0 12px ${playerColors[index] || playerColors[0]}` }} />
                   <span className="min-w-0 flex-1 truncate text-xs font-black text-white">{player.name}{player.id === gamePlayerId ? ' · toi' : ''}</span>
-                  <span className="text-xl font-black text-amber-200">{state.chkobbaScores?.[player.id] || 0}</span>
+                  <span className="text-xl font-black text-amber-200">{displayedScore}</span>
                 </div>
                 <div className="mt-1 flex items-center gap-3 text-[9px] font-bold uppercase tracking-wider text-white/45">
                   <span>{state.chkobbaCapturedCounts?.[player.id] || 0} cartes</span>
-                  <span className="flex items-center gap-1"><Coins className="h-3 w-3" /> {state.chkobbaScopaCounts?.[player.id] || 0} scopa</span>
+                  <span className="flex items-center gap-1"><Coins className="h-3 w-3" /> {teamMode && playerTeam ? teamLabel(playerTeam) : `${state.chkobbaScopaCounts?.[player.id] || 0} scopa`}</span>
                 </div>
                 {isActive && !state.chkobbaWinner && <span className="absolute bottom-0 left-0 h-0.5 w-full animate-pulse bg-amber-300" />}
               </div>;
@@ -324,6 +361,19 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
           <div className="relative overflow-hidden rounded-[32px] border-[4px] border-[#6b3d25] bg-cover bg-center p-4 shadow-[0_28px_60px_rgba(12,6,2,.52)]" style={{ backgroundImage: `url(${woodTableTexture})` }}>
             <div className="pointer-events-none absolute inset-2 rounded-[24px] border border-[#f4d6a5]/25" />
             <div className="relative">
+              <div className="mb-3 flex items-center justify-between rounded-2xl border border-[#f1c777]/30 bg-[#1e110b]/85 px-3.5 py-2 backdrop-blur-md shadow-md">
+                <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#f1c777]">Score :</span>
+                  {players.map((p, idx) => (
+                    <div key={p.id} className="flex items-center gap-1 shrink-0 text-xs font-bold text-white">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: playerColors[idx] || '#f8b84e' }} />
+                      <span className="text-white/80">{p.name}:</span>
+                      <span className="font-black text-[#f1c777]">{teamMode && state.chkobbaTeamByPlayerId?.[p.id] ? state.chkobbaTeamScores?.[state.chkobbaTeamByPlayerId[p.id]] || 0 : state.chkobbaScores?.[p.id] || 0}</span>
+                    </div>
+                  ))}
+                </div>
+                <span className="ml-2 shrink-0 rounded-full bg-[#f1c777]/15 px-2 py-0.5 text-[9px] font-black uppercase text-[#f1c777]">Obj: {state.chkobbaTargetScore || targetScore} pts</span>
+              </div>
               <div className="flex items-center justify-between">
                 <span className="rounded-full bg-[#21130d]/75 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-[#f7dfb4] shadow-sm">Sur la table</span>
                 <span className="rounded-full bg-[#21130d]/75 px-3 py-1.5 text-[10px] font-black text-white/80">{table.length ? `${table.length} cartes` : 'Table vide'}</span>
@@ -371,14 +421,14 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
                   <span className="rounded-full bg-[#21130d]/75 px-2.5 py-1 text-[10px] font-black text-[#f7dfb4]">{hand.length} cartes</span>
                 </div>
                 <div className="no-scrollbar -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-4 pt-3">
-                  {hand.map((card, index) => <div key={card.id} draggable={myTurn} onDragStart={event => startCardDrag(event, card)} onDragEnd={() => { draggedCard.current = null; }} className="animate-card-deal cursor-grab active:cursor-grabbing" style={{ transform: `rotate(${[-3, 1, 3, -1][index % 4]}deg)` }}><CardFace card={card} selected={selectedCard?.id === card.id} disabled={!myTurn} onClick={myTurn ? () => selectCard(card) : undefined} /></div>)}
+                  {hand.map((card, index) => <div key={card.id} draggable={myTurn} onDragStart={event => startCardDrag(event, card)} onDragEnd={() => { draggedCard.current = null; }} className="animate-card-deal cursor-grab active:cursor-grabbing" style={{ transform: `rotate(${[-3, 1, 3, -1][index % 4]}deg)`, animationDelay: `${index * 120}ms` }}><CardFace card={card} selected={selectedCard?.id === card.id} disabled={!myTurn} onClick={myTurn ? () => selectCard(card) : undefined} /></div>)}
                   {hand.length === 0 && <p className="w-full rounded-2xl bg-[#21130d]/45 py-8 text-center text-xs font-bold text-white/65">{started && !winner ? 'En attente de la prochaine donne…' : 'Ta main apparaîtra ici.'}</p>}
                 </div>
               </div>
             </div>
           </div>
 
-          {state.chkobbaWinner ? <GameResultBanner winnerName={winner?.name} label="Chkobba finale" detail={`${winner?.name || 'Un joueur'} atteint ${state.chkobbaScores?.[state.chkobbaWinner] || state.chkobbaTargetScore || targetScore} points`} tone="amber" actionLabel="Rejouer la partie" onAction={() => socket.current?.send('chkobba/replay', { targetScore: state.chkobbaTargetScore || targetScore, botEnabled: Boolean(state.chkobbaBotEnabled) })} /> : state.chkobbaLastRoundScores && Object.keys(state.chkobbaLastRoundScores).length > 0 && lastRoundWinner ? (
+          {state.chkobbaWinner ? <GameResultBanner winnerName={teamMode ? teamLabel(state.chkobbaWinnerTeam) : winner?.name} label="Chkobba finale" detail={`${teamMode ? teamLabel(state.chkobbaWinnerTeam) : winner?.name || 'Un joueur'} atteint ${teamMode ? state.chkobbaTeamScores?.[state.chkobbaWinnerTeam || ''] : state.chkobbaScores?.[state.chkobbaWinner]} points`} tone="amber" actionLabel="Rejouer la partie" onAction={() => socket.current?.send('chkobba/replay', { targetScore: state.chkobbaTargetScore || targetScore, botEnabled: Boolean(state.chkobbaBotEnabled), teamMode: Boolean(state.chkobbaTeamMode), botPartnerId: state.chkobbaBotPartnerId })} /> : state.chkobbaLastRoundScores && Object.keys(state.chkobbaLastRoundScores).length > 0 && lastRoundWinner ? (
             <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/[.08] px-4 py-3 text-center text-xs font-bold text-emerald-100 animate-fadeIn">
               <Trophy className="mr-1 inline h-4 w-4 text-amber-300" /> Manche gagnée par {lastRoundWinner.name} · +{state.chkobbaLastRoundScores[lastRoundWinner.id] || 0} point{(state.chkobbaLastRoundScores[lastRoundWinner.id] || 0) > 1 ? 's' : ''}
             </div>
@@ -394,6 +444,7 @@ export const ChkobbaGame: React.FC<Props> = ({ tableId, onBack }) => {
           </details>
         </>
       )}
+      <ConfirmLeaveModal open={showLeaveModal} onClose={() => setShowLeaveModal(false)} onConfirm={leaveGame} />
     </section>
   );
 };

@@ -8,6 +8,7 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { KitchenDashboard } from './pages/KitchenDashboard';
 import { StaffPortal } from './pages/StaffPortal';
 import { AdminPortal } from './pages/AdminPortal';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 export const App: React.FC = () => {
   return (
@@ -20,15 +21,14 @@ export const App: React.FC = () => {
             <Route path="/m/:cafeSlug" element={<ClientApp />} />
 
             {/* Kitchen KDS Bar & Kitchen Screen */}
-            <Route path="/kitchen/:cafeSlug" element={<KitchenDashboard />} />
-            <Route path="/kitchen" element={<KitchenDashboard />} />
+            <Route path="/kitchen/:cafeSlug" element={<ProtectedRoute roles={['ADMIN', 'STAFF']} fallback="/staff"><KitchenDashboard /></ProtectedRoute>} />
 
             {/* Staff Tablet Portal & Dashboard */}
-            <Route path="/staff/:cafeSlug" element={<StaffDashboard />} />
+            <Route path="/staff/:cafeSlug" element={<ProtectedRoute roles={['STAFF']} fallback="/staff"><StaffDashboard /></ProtectedRoute>} />
             <Route path="/staff" element={<StaffPortal />} />
 
             {/* Admin Owner Portal & Dashboard */}
-            <Route path="/admin/:cafeSlug" element={<AdminDashboard />} />
+            <Route path="/admin/:cafeSlug" element={<ProtectedRoute roles={['ADMIN']} fallback="/admin"><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminPortal />} />
 
             {/* Default Fallback to Demo Table */}

@@ -21,6 +21,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const { currentCafeSlug, currentTableNumber, setActiveOrderId } = useTableSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSubmitOrder = async () => {
@@ -54,8 +63,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-overlay animate-fadeIn">
-      <div className="w-full max-w-md bg-[#0d0f18] border border-white/[0.06] rounded-t-[28px] sm:rounded-[28px] max-h-[88vh] flex flex-col shadow-2xl animate-slideUp">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-overlay animate-fadeIn" onClick={onClose}>
+      <div className="w-full max-w-md bg-[#0d0f18] border border-white/[0.06] rounded-t-[28px] sm:rounded-[28px] max-h-[88vh] flex flex-col shadow-2xl animate-slideUp relative" onClick={(e) => e.stopPropagation()}>
+        {/* Mobile Drag Handle */}
+        <div className="w-12 h-1.5 bg-white/30 rounded-full mx-auto my-2 sm:hidden cursor-pointer" onClick={onClose} />
         {/* Header */}
         <div className="px-5 py-4 border-b border-white/[0.04] flex items-center justify-between">
           <div className="flex items-center space-x-2.5">

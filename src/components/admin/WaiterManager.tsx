@@ -54,7 +54,7 @@ export const WaiterManager: React.FC<WaiterManagerProps> = ({ cafeSlug }) => {
   const handleOpenEditModal = (waiter: Waiter) => {
     setEditingWaiter(waiter);
     setName(waiter.name);
-    setPinCode(waiter.pinCode || '');
+    setPinCode('');
     setShiftHours(waiter.shiftHours || '');
     setIsActive(waiter.isActive);
     setSelectedTables(waiter.assignedTables || []);
@@ -74,7 +74,7 @@ export const WaiterManager: React.FC<WaiterManagerProps> = ({ cafeSlug }) => {
       setFormError('Le nom du serveur est obligatoire');
       return;
     }
-    if (!pinCode.trim() || pinCode.length < 4) {
+    if ((!editingWaiter && !pinCode.trim()) || (pinCode.trim() && pinCode.length < 4)) {
       setFormError('Le code PIN doit comporter au moins 4 chiffres');
       return;
     }
@@ -87,7 +87,7 @@ export const WaiterManager: React.FC<WaiterManagerProps> = ({ cafeSlug }) => {
       if (editingWaiter) {
         savedWaiter = await api.updateWaiter(editingWaiter.id, {
           name,
-          pinCode,
+          ...(pinCode ? { pinCode } : {}),
           shiftHours,
           isActive,
         });
@@ -209,7 +209,7 @@ export const WaiterManager: React.FC<WaiterManagerProps> = ({ cafeSlug }) => {
                     <span>Code PIN</span>
                   </span>
                   <span className="font-extrabold text-amber-300 font-mono tracking-widest bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/20">
-                    {waiter.pinCode || '••••'}
+                    ••••
                   </span>
                 </div>
 
@@ -290,11 +290,11 @@ export const WaiterManager: React.FC<WaiterManagerProps> = ({ cafeSlug }) => {
                   <input
                     type="text"
                     maxLength={4}
-                    placeholder="Ex: 1234"
+                    placeholder={editingWaiter ? 'Laisser vide pour conserver' : 'Ex: 1234'}
                     value={pinCode}
                     onChange={(e) => setPinCode(e.target.value.replace(/\D/g, ''))}
                     className="w-full bg-white/[0.03] text-amber-300 font-extrabold tracking-widest px-4 py-3 rounded-2xl border border-white/[0.06] focus:border-orange-500"
-                    required
+                    required={!editingWaiter}
                   />
                 </div>
               </div>

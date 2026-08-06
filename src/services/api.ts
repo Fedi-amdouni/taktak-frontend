@@ -1,6 +1,31 @@
 import { Cafe, Category, Product, Order, OrderStatus, CreateOrderPayload, ServiceCall, Waiter, WaiterPerformance, AmbianceState, TableEntity, FloorPlan, FloorObstacle } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+const AUTH_STORAGE_KEY = 'taktakAuth';
+
+export interface AuthSession {
+  token: string;
+  role: 'ADMIN' | 'STAFF';
+  cafeSlug?: string | null;
+  waiter?: Waiter | null;
+}
+
+export const authSession = {
+  get(): AuthSession | null {
+    try {
+      const raw = sessionStorage.getItem(AUTH_STORAGE_KEY);
+      return raw ? JSON.parse(raw) as AuthSession : null;
+    } catch {
+      return null;
+    }
+  },
+  set(session: AuthSession) {
+    sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  },
+  clear() {
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  },
+};
 
 export interface OwnerAnalytics {
   totalRevenue: number;
@@ -27,8 +52,12 @@ export function notifyLocalOrderCreated(order: Order) {
 
 // Helper for HTTP requests with error handling
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, options);
+  const session = authSession.get();
+  const headers = new Headers(options?.headers);
+  if (session?.token) headers.set('Authorization', `Bearer ${session.token}`);
+  const response = await fetch(url, { ...options, headers });
   if (!response.ok) {
+    if (response.status === 401 && !url.includes('/auth/')) authSession.clear();
     throw new Error(`API Error: ${response.status} ${response.statusText}`);
   }
   if (response.status === 24 || response.status === 204) {
@@ -38,6 +67,14 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  loginAdmin: async (password: string): Promise<AuthSession> => {
+    const session = await fetchJson<AuthSession>(`${API_BASE}/auth/admin/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }),
+    });
+    authSession.set(session);
+    return session;
+  },
+
   // Cafe & Menu
   getAllCafes: async (): Promise<Cafe[]> => {
     return fetchJson<Cafe[]>(`${API_BASE}/cafes`);
@@ -182,11 +219,14 @@ export const api = {
 
   // Waiter & Zoning Management
   loginWaiter: async (cafeSlug: string, pinCode: string): Promise<Waiter> => {
-    return fetchJson<Waiter>(`${API_BASE}/v1/cafes/${cafeSlug}/waiters/login`, {
+    const session = await fetchJson<AuthSession>(`${API_BASE}/auth/staff/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pinCode }),
+      body: JSON.stringify({ cafeSlug, pinCode }),
     });
+    authSession.set(session);
+    if (!session.waiter) throw new Error('Session serveur invalide');
+    return session.waiter;
   },
 
   assignWaiterTables: async (waiterId: string, tableNumbers: number[]): Promise<Waiter> => {

@@ -9,6 +9,8 @@ export const AdminPortal: React.FC = () => {
   const [cafes, setCafes] = useState<Cafe[]>([]);
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchCafes = async () => {
@@ -30,9 +32,18 @@ export const AdminPortal: React.FC = () => {
     fetchCafes();
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsAuthenticated(true);
+    setIsLoading(true);
+    setLoginError('');
+    try {
+      await api.loginAdmin(password);
+      setIsAuthenticated(true);
+    } catch {
+      setLoginError('Mot de passe incorrect.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -72,11 +83,14 @@ export const AdminPortal: React.FC = () => {
               />
             </div>
 
+            {loginError && <p className="text-xs text-red-400 text-center font-bold">{loginError}</p>}
+
             <button
               type="submit"
+              disabled={isLoading}
               className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-3.5 px-4 rounded-2xl shadow-xl shadow-orange-500/20 transition-all duration-300 active:scale-[0.98]"
             >
-              Se Connecter au Dashboard
+              {isLoading ? 'Connexion…' : 'Se Connecter au Dashboard'}
             </button>
           </form>
         ) : (

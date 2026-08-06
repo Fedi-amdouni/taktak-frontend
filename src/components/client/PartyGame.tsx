@@ -174,8 +174,15 @@ export const PartyGame: React.FC<Props> = ({ tableId, mode, onBack }) => {
         /* Active Game View */
         <div className="mt-4 space-y-4">
           <RoundGameTable players={players} turnId={state.partyTurnId}>
-            <div className="max-w-56 rounded-2xl bg-white p-4 text-center text-sm font-black leading-relaxed text-slate-900 shadow-2xl border border-white/20">
-              {state.partyPrompt || 'Chargement du défi...'}
+            <div className="max-w-56 rounded-2xl bg-white p-4 text-center text-sm font-black leading-relaxed text-slate-900 shadow-2xl border border-white/20 space-y-1">
+              {mode === 'truth' && state.partyChoice && (
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-100 text-purple-800 tracking-wider">
+                  {state.partyChoice === 'truth' ? '💬 VÉRITÉ' : '⚡ ACTION'}
+                </span>
+              )}
+              <p className="pt-0.5">
+                {state.partyPrompt || (mode === 'truth' ? 'Choisissez Action ⚡ ou Vérité 💬' : 'Chargement du défi...')}
+              </p>
             </div>
           </RoundGameTable>
 
@@ -212,10 +219,24 @@ export const PartyGame: React.FC<Props> = ({ tableId, mode, onBack }) => {
                       <span className="text-[10px] font-normal text-amber-200">Défi à réaliser</span>
                     </button>
                   </div>
+                  <button
+                    onClick={() => socket.current?.send('party/next', { playerId: gamePlayerId })}
+                    className="w-full mt-2 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-gray-300 transition-all border border-white/10"
+                  >
+                    ⏭️ Passer mon tour (Joueur suivant)
+                  </button>
                 </>
               ) : (
-                <div className="text-center py-4 text-purple-200 font-medium text-sm animate-pulse">
-                  ⏳ En attente que <span className="font-bold text-amber-300">{active?.name}</span> choisisse entre <span className="font-bold">Action ⚡</span> et <span className="font-bold">Vérité 💬</span>...
+                <div className="text-center py-3 space-y-2">
+                  <p className="text-purple-200 font-medium text-sm animate-pulse">
+                    ⏳ En attente que <span className="font-bold text-amber-300">{active?.name}</span> choisisse entre <span className="font-bold">Action ⚡</span> et <span className="font-bold">Vérité 💬</span>...
+                  </p>
+                  <button
+                    onClick={() => socket.current?.send('party/next', { playerId: gamePlayerId })}
+                    className="py-1.5 px-3 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-bold text-gray-400 transition-all border border-white/5"
+                  >
+                    Passer au joueur suivant ⏭️
+                  </button>
                 </div>
               )}
             </div>
@@ -238,7 +259,7 @@ export const PartyGame: React.FC<Props> = ({ tableId, mode, onBack }) => {
           )}
 
           {/* Action buttons */}
-          <div className="pt-2">
+          <div className="pt-2 space-y-2">
             {myTurn && mode === 'quiz' && !state.partyRevealed && (
               <button
                 onClick={() => socket.current?.send('party/reveal', { playerId: gamePlayerId })}
@@ -248,12 +269,12 @@ export const PartyGame: React.FC<Props> = ({ tableId, mode, onBack }) => {
               </button>
             )}
 
-            {myTurn && (mode === 'truth' ? !!state.partyChoice : state.partyRevealed) && (
+            {(mode === 'truth' ? !!state.partyChoice : state.partyRevealed) && (
               <button
                 onClick={() => socket.current?.send('party/next', { playerId: gamePlayerId })}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 py-3.5 font-black text-slate-950 shadow-lg shadow-amber-400/20 hover:bg-amber-300 transition-all"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 py-3.5 font-black text-slate-950 shadow-lg shadow-amber-400/20 hover:brightness-110 active:scale-[0.98] transition-all"
               >
-                Passer au joueur suivant <ArrowRight className="h-5 w-5" />
+                <span>Passer au joueur suivant</span> <ArrowRight className="h-5 w-5" />
               </button>
             )}
           </div>

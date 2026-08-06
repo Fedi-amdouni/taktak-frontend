@@ -66,7 +66,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     setComboSelections(initialComboSelections);
     setQuantity(1);
     setNotes('');
-  }, [product?.id]);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [product?.id, onClose]);
 
   const handleSelectOption = (groupName: string, choice: string) => {
     setSelectedOptions((prev) => ({ ...prev, [groupName]: choice }));
@@ -98,7 +104,6 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const handleAdd = () => {
     // Merge combo selections into final options for cart & order tracking
     const finalOptions: Record<string, string> = { ...selectedOptions };
-
     comboSlots.forEach((slot) => {
       const chosen = comboSelections[slot.id] || [];
       if (chosen.length > 0) {
@@ -168,8 +173,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-overlay animate-fadeIn">
-      <div className="w-full max-w-md bg-[#0d0f18] border border-white/[0.06] rounded-t-[32px] sm:rounded-[28px] max-h-[92vh] overflow-y-auto no-scrollbar flex flex-col shadow-2xl animate-slideUp relative">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-overlay animate-fadeIn" onClick={onClose}>
+      <div className="w-full max-w-md bg-[#0d0f18] border border-white/[0.06] rounded-t-[32px] sm:rounded-[28px] max-h-[92vh] overflow-y-auto no-scrollbar flex flex-col shadow-2xl animate-slideUp relative" onClick={(e) => e.stopPropagation()}>
         {/* Mobile Drag Handle */}
         <div className="w-12 h-1.5 bg-white/30 rounded-full mx-auto my-2 sm:hidden absolute top-2 left-1/2 -translate-x-1/2 z-30 cursor-pointer" onClick={onClose} />
 
