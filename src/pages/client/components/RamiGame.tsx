@@ -214,7 +214,9 @@ export const RamiGame: React.FC<Props> = ({ tableId, onBack }) => {
   };
 
   const discard = () => {
-    if (myTurn && hasDrawn && selectedIds.length === 1) socket.current?.send('rami/discard', { playerId: gamePlayerId, cardId: selectedIds[0] });
+    if (myTurn && hasDrawn && selectedIds.length === 1 && !isJoker(selectedCards[0])) {
+      socket.current?.send('rami/discard', { playerId: gamePlayerId, cardId: selectedIds[0] });
+    }
   };
 
   const replaceJoker = (meldIndex: number, jokerId: string) => {
@@ -389,7 +391,7 @@ export const RamiGame: React.FC<Props> = ({ tableId, onBack }) => {
                   style={{
                     zIndex: draggedCardId === card.id ? 40 : index + 1,
                     animationDelay: `${index * 80}ms`,
-                    transform: `translateX(calc(-50% + ${(index - (hand.length - 1) / 2) * Math.max(17, Math.min(32, 284 / Math.max(1, hand.length - 1)))}px)) translateY(${Math.abs(index - (hand.length - 1) / 2) * 1.25}px) rotate(${(index - (hand.length - 1) / 2) * Math.max(-3.6, Math.min(3.6, 34 / Math.max(1, hand.length - 1)))}deg)`,
+                    transform: `translateX(calc(-50% + ${(index - (hand.length - 1) / 2) * Math.max(16, Math.min(30, 248 / Math.max(1, hand.length - 1)))}px)) translateY(${Math.abs(index - (hand.length - 1) / 2) * 1.05}px) rotate(${(index - (hand.length - 1) / 2) * Math.max(-3.1, Math.min(3.1, 29 / Math.max(1, hand.length - 1)))}deg)`,
                   } as React.CSSProperties}
                 >
                   <CardFace card={card} selected={selectedIds.includes(card.id)} disabled={!myTurn || !hasDrawn} onClick={myTurn && hasDrawn ? () => {
