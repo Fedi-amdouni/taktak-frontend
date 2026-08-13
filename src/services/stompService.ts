@@ -1,6 +1,6 @@
 import { Client, ReconnectionTimeMode } from '@stomp/stompjs';
 import { Order, ServiceCall, AmbianceState } from '../types';
-import { subscribeLocalOrders } from './api';
+import { subscribeLocalOrders } from './orderService';
 
 const getWebSocketUrl = () => {
   if (import.meta.env.VITE_WS_URL) {

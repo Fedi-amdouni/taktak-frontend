@@ -2,13 +2,13 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { TableSessionProvider } from './context/TableSessionContext';
 import { CartProvider } from './context/CartContext';
-import { ClientApp } from './pages/ClientApp';
-import { StaffDashboard } from './pages/StaffDashboard';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { KitchenDashboard } from './pages/KitchenDashboard';
-import { StaffPortal } from './pages/StaffPortal';
-import { AdminPortal } from './pages/AdminPortal';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { ClientApp } from './pages/client/ClientApp';
+import { StaffDashboard } from './pages/staff/StaffDashboard';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { KitchenDashboard } from './pages/kitchen/KitchenDashboard';
+import { StaffPortal } from './pages/staff/StaffPortal';
+import { AdminPortal } from './pages/admin/AdminPortal';
+import { ProtectedRoute } from './components/common/ProtectedRoute';
 
 export const App: React.FC = () => {
   return (

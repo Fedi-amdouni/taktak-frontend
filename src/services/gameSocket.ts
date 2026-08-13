@@ -111,6 +111,7 @@ export const createGameSocket = (tableId: string, onEvent: (event: GameEvent) =>
   const pending: Array<{ action: string; body: object }> = [];
   const client = new Client({
     brokerURL: wsUrl,
+    connectHeaders: { 'x-game-player-id': gamePlayerId },
     reconnectDelay: 1000,
     maxReconnectDelay: 30000,
     reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
