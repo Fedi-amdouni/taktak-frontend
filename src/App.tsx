@@ -2,12 +2,13 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { TableSessionProvider } from './context/TableSessionContext';
 import { CartProvider } from './context/CartContext';
-import { ClientApp } from './pages/ClientApp';
-import { StaffDashboard } from './pages/StaffDashboard';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { KitchenDashboard } from './pages/KitchenDashboard';
-import { StaffPortal } from './pages/StaffPortal';
-import { AdminPortal } from './pages/AdminPortal';
+import { ClientApp } from './pages/client/ClientApp';
+import { StaffDashboard } from './pages/staff/StaffDashboard';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { KitchenDashboard } from './pages/kitchen/KitchenDashboard';
+import { StaffPortal } from './pages/staff/StaffPortal';
+import { AdminPortal } from './pages/admin/AdminPortal';
+import { ProtectedRoute } from './components/common/ProtectedRoute';
 
 export const App: React.FC = () => {
   return (
@@ -20,15 +21,14 @@ export const App: React.FC = () => {
             <Route path="/m/:cafeSlug" element={<ClientApp />} />
 
             {/* Kitchen KDS Bar & Kitchen Screen */}
-            <Route path="/kitchen/:cafeSlug" element={<KitchenDashboard />} />
-            <Route path="/kitchen" element={<KitchenDashboard />} />
+            <Route path="/kitchen/:cafeSlug" element={<ProtectedRoute roles={['ADMIN', 'STAFF']} fallback="/staff"><KitchenDashboard /></ProtectedRoute>} />
 
             {/* Staff Tablet Portal & Dashboard */}
-            <Route path="/staff/:cafeSlug" element={<StaffDashboard />} />
+            <Route path="/staff/:cafeSlug" element={<ProtectedRoute roles={['STAFF']} fallback="/staff"><StaffDashboard /></ProtectedRoute>} />
             <Route path="/staff" element={<StaffPortal />} />
 
             {/* Admin Owner Portal & Dashboard */}
-            <Route path="/admin/:cafeSlug" element={<AdminDashboard />} />
+            <Route path="/admin/:cafeSlug" element={<ProtectedRoute roles={['ADMIN']} fallback="/admin"><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminPortal />} />
 
             {/* Default Fallback to Demo Table */}

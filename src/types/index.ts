@@ -117,6 +117,8 @@ export interface Order {
   tableNumber: number;
   status: OrderStatus;
   totalPrice: number;
+  couponId?: string;
+  discountAmount?: number;
   createdAt: string;
   updatedAt?: string;
   items: OrderItem[];
@@ -135,7 +137,13 @@ export interface CreateOrderPayload {
     notes?: string;
   }[];
   totalPrice: number;
+  couponCode?: string;
 }
+
+export interface RewardOption { id?: string; label: string; discountPercent: number; probabilityPercent: number; enabled: boolean; }
+export interface RewardCampaign { enabled: boolean; googleReviewUrl?: string; couponValidDays: number; participationCooldownDays: number; minimumOrderAmount: number; options: RewardOption[]; }
+export interface CouponReward { rewardLabel: string; discountPercent: number; expiresAt: string; googleReviewUrl?: string; }
+export interface CouponValidation { valid: boolean; code: string; rewardLabel: string; discountPercent: number; discountAmount: number; finalAmount: number; expiresAt: string; }
 
 export interface TableSession {
   cafeSlug: string;

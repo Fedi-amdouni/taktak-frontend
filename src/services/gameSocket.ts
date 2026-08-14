@@ -1,7 +1,7 @@
-import { Client } from '@stomp/stompjs';
+import { Client, ReconnectionTimeMode } from '@stomp/stompjs';
 
 export type ConnectFourPlayer = { id: string; name: string } | null;
-export type ChkobbaCard = { id: string; suit: 'DINARI' | 'KOPPA' | 'SABRES' | 'BASTONI'; rank: string; value: number };
+export type ChkobbaCard = { id: string; suit: 'DINARI' | 'KOPPA' | 'SABRES' | 'BASTONI' | 'JOKER'; rank: string; value: number };
 export type RamiMeld = { type: 'set' | 'run'; cards: ChkobbaCard[] };
 export type GameEvent = {
   type: 'roulette_players' | 'roulette_spin' | 'connect_four_state' | 'uno_state' | 'uno_hand' | 'party_state' | 'ludo_state' | 'chkobba_state' | 'chkobba_hand' | 'rami_state' | 'rami_hand';
@@ -18,6 +18,7 @@ export type GameEvent = {
   unoHand?: string[];
   unoHandCounts?: Record<string, number>;
   unoTopCard?: string;
+  unoActiveColor?: 'RED' | 'BLUE' | 'GREEN' | 'YELLOW' | 'WILD';
   unoTurnId?: string;
   unoWinner?: string;
   unoStarted?: boolean;
@@ -46,6 +47,11 @@ export type GameEvent = {
   chkobbaStarted?: boolean;
   chkobbaTargetScore?: 11 | 21;
   chkobbaBotEnabled?: boolean;
+  chkobbaTeamMode?: boolean;
+  chkobbaTeamByPlayerId?: Record<string, string>;
+  chkobbaTeamScores?: Record<string, number>;
+  chkobbaWinnerTeam?: string;
+  chkobbaBotPartnerId?: string;
   chkobbaScores?: Record<string, number>;
   chkobbaCapturedCounts?: Record<string, number>;
   chkobbaScopaCounts?: Record<string, number>;
@@ -70,7 +76,11 @@ export type GameEvent = {
   ramiBotEnabled?: boolean;
   ramiDeckRemaining?: number;
   ramiRound?: number;
+  ramiScores?: Record<string, number>;
   ramiHandCounts?: Record<string, number>;
+  ramiMinMeldScore?: number;
+  ramiPlayerHasLaid?: Record<string, boolean>;
+  ramiJokerReplacements?: Record<string, { suit: string; rank: string; points: number }>;
 };
 
 const clientId = (() => {
@@ -101,7 +111,11 @@ export const createGameSocket = (tableId: string, onEvent: (event: GameEvent) =>
   const pending: Array<{ action: string; body: object }> = [];
   const client = new Client({
     brokerURL: wsUrl,
-    reconnectDelay: 3000,
+    connectHeaders: { 'x-game-player-id': gamePlayerId },
+    reconnectDelay: 1000,
+    maxReconnectDelay: 30000,
+    reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
+    connectionTimeout: 10000,
     onConnect: () => {
       client.subscribe(`/topic/table/${tableId}/game`, message => {
         try { onEvent(JSON.parse(message.body) as GameEvent); } catch { /* ignore malformed messages */ }
