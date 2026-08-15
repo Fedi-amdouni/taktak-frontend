@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChefHat, Volume2, VolumeX, RefreshCw, Sparkles, Zap, Bell, CheckCircle, Sun, Activity, MapPin, Filter, Lock, Calendar, Archive, Flame, UtensilsCrossed, Layout, List } from 'lucide-react';
 import { Order, OrderStatus, ServiceCall, Waiter, TableEntity, FloorPlan, FloorObstacle } from '../../../types';
 import { api } from '../../../services/api';
+import { authSession } from '../../../services/apiClient';
 import { stompService } from '../../../services/stompService';
 import { OrderCard } from './OrderCard';
 import { TableShiftAlert } from './TableShiftAlert';
@@ -17,6 +19,7 @@ interface KanbanBoardProps {
 }
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [serviceCalls, setServiceCalls] = useState<ServiceCall[]>([]);
   const [tables, setTables] = useState<TableEntity[]>([]);
@@ -31,11 +34,23 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
 
   // Waiter & Zoning state
   const [activeWaiter, setActiveWaiter] = useState<Waiter | null>(() => {
+    const session = authSession.get();
     const saved = localStorage.getItem(`activeWaiter_${cafeSlug}`);
-    return saved ? JSON.parse(saved) : null;
+    if (session?.token && saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+    return null;
   });
   const [allWaiters, setAllWaiters] = useState<Waiter[]>([]);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(!activeWaiter);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(() => {
+    const session = authSession.get();
+    const saved = localStorage.getItem(`activeWaiter_${cafeSlug}`);
+    return !session?.token || !saved;
+  });
   const [isZoneModalOpen, setIsZoneModalOpen] = useState<boolean>(false);
   const [isMyZoneOnly, setIsMyZoneOnly] = useState<boolean>(true);
   const [orderTable, setOrderTable] = useState<TableEntity | null>(null);
@@ -107,7 +122,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
   };
 
   const loadData = async () => {
+    const session = authSession.get();
+    if (!session?.token) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
     try {
+      api.sendStaffHeartbeat(cafeSlug); // Auto-apprentissage invisible de l'IP du WiFi du café
+
       const [orderList, callList, tableList, planList, waiterList] = await Promise.all([
         api.getOrdersByCafe(cafeSlug),
         api.getServiceCalls(cafeSlug),
@@ -128,7 +151,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
       // Keep active logged-in waiter's table assignments in sync with Admin's assignments!
       if (activeWaiter) {
         const updatedSelf = validWaiters.find((w) => w.id === activeWaiter.id);
-        if (updatedSelf) {
+        if (updatedSelf && JSON.stringify(updatedSelf.assignedTables) !== JSON.stringify(activeWaiter.assignedTables)) {
           setActiveWaiter(updatedSelf);
           localStorage.setItem(`activeWaiter_${cafeSlug}`, JSON.stringify(updatedSelf));
         }
@@ -143,6 +166,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
     localStorage.setItem(`activeWaiter_${cafeSlug}`, JSON.stringify(waiter));
     setIsLoginModalOpen(false);
 
+    // Recharger immédiatement les commandes et le plan avec le token fraîchement obtenu
+    loadData();
+
     if (!waiter.assignedTables || waiter.assignedTables.length === 0) {
       setIsZoneModalOpen(true);
     }
@@ -151,12 +177,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
   const handleWaiterLogout = () => {
     setActiveWaiter(null);
     localStorage.removeItem(`activeWaiter_${cafeSlug}`);
+    authSession.clear();
     setIsLoginModalOpen(true);
   };
 
   const handleZoneUpdated = (updatedWaiter: Waiter) => {
     setActiveWaiter(updatedWaiter);
     localStorage.setItem(`activeWaiter_${cafeSlug}`, JSON.stringify(updatedWaiter));
+    loadData();
   };
 
   useEffect(() => {
@@ -351,29 +379,37 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
           </div>
         </div>
 
-        {/* View Switcher: Plan 2D vs Kanban */}
-        <div className="flex items-center bg-white/[0.04] p-1 rounded-2xl border border-white/[0.08]">
+        {/* View Switcher: Plan 2D vs Kanban vs Cuisine KDS */}
+        <div className="flex items-center bg-white/[0.04] p-1 rounded-2xl border border-white/[0.08] gap-1">
           <button
             onClick={() => setViewMode('MAP')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
               viewMode === 'MAP'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
             <Layout className="w-4 h-4" />
-            <span>🗺️ Plan 2D Salle</span>
+            <span>🗺️ Plan 2D</span>
           </button>
           <button
             onClick={() => setViewMode('KANBAN')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
               viewMode === 'KANBAN'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
             <List className="w-4 h-4" />
-            <span>📜 Historique & Kanban</span>
+            <span>📜 Commandes</span>
+          </button>
+          <button
+            onClick={() => navigate(`/kitchen/${cafeSlug}`)}
+            className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-black text-amber-300 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all active:scale-95"
+            title="Basculer vers l'écran KDS Cuisine"
+          >
+            <ChefHat className="w-4 h-4 text-amber-400" />
+            <span>👨‍🍳 Cuisine</span>
           </button>
         </div>
 
@@ -498,6 +534,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
       {/* Main View Area */}
       {viewMode === 'MAP' ? (
         <InteractiveFloorPlan
+          cafeSlug={cafeSlug}
           tables={tables}
           floorPlans={floorPlans}
           obstacles={floorObstacles}

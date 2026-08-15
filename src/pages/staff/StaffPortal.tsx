@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Store, KeyRound, ArrowRight, ShieldCheck, Sparkles, MapPin } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Store, KeyRound, ArrowRight, ShieldCheck, MapPin, ChefHat, Tablet } from 'lucide-react';
 import { Cafe } from '../../types';
 import { api } from '../../services/api';
 
 export const StaffPortal: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTarget = searchParams.get('redirect');
+  const [portalMode, setPortalMode] = useState<'STAFF' | 'KITCHEN'>(
+    redirectTarget?.includes('kitchen') ? 'KITCHEN' : 'STAFF'
+  );
+
   const [cafes, setCafes] = useState<Cafe[]>([]);
   const [selectedCafe, setSelectedCafe] = useState<Cafe | null>(null);
   const [pinCode, setPinCode] = useState('');
@@ -23,7 +29,7 @@ export const StaffPortal: React.FC = () => {
             { id: '2', name: 'Carthage Lounge', slug: 'carthage-lounge', logoUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=300&q=80' },
           ]);
         }
-      } catch (err) {
+      } catch {
         setCafes([
           { id: '1', name: 'Monastir Lounge', slug: 'monastir-lounge', logoUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=300&q=80' },
         ]);
@@ -43,7 +49,11 @@ export const StaffPortal: React.FC = () => {
     try {
       const waiter = await api.loginWaiter(selectedCafe.slug, candidate);
       localStorage.setItem(`activeWaiter_${selectedCafe.slug}`, JSON.stringify(waiter));
-      navigate(`/staff/${selectedCafe.slug}`);
+      if (portalMode === 'KITCHEN' || (redirectTarget && redirectTarget.includes('kitchen'))) {
+        navigate(`/kitchen/${selectedCafe.slug}`);
+      } else {
+        navigate(`/staff/${selectedCafe.slug}`);
+      }
     } catch {
       setErrorMsg('Code PIN incorrect.');
       setPinCode('');
@@ -75,20 +85,46 @@ export const StaffPortal: React.FC = () => {
       <div className="w-full max-w-md relative z-10 space-y-6">
         {/* Header Title */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center space-x-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-lg">
+          <div className="inline-flex items-center space-x-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 px-3.5 py-1.5 rounded-full text-xs font-black shadow-lg">
             <ShieldCheck className="w-4 h-4" />
-            <span>Portail Service en Salle & Tablette</span>
+            <span>Portail Équipe & KDS</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">TakTak Salle</h1>
-          <p className="text-xs text-gray-400">Sélectionnez votre établissement pour démarrer votre service en salle</p>
+          <h1 className="text-3xl font-black tracking-tight">TakTak Pro</h1>
+          <p className="text-xs text-gray-400">Accès sécurisé pour le service en salle et la cuisine</p>
+        </div>
+
+        {/* Portal Destination Switcher */}
+        <div className="grid grid-cols-2 gap-2 bg-white/[0.03] p-1.5 rounded-2xl border border-white/[0.08]">
+          <button
+            onClick={() => setPortalMode('STAFF')}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all ${
+              portalMode === 'STAFF'
+                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Tablet className="w-4 h-4" />
+            <span>Tablette Serveur</span>
+          </button>
+          <button
+            onClick={() => setPortalMode('KITCHEN')}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all ${
+              portalMode === 'KITCHEN'
+                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <ChefHat className="w-4 h-4" />
+            <span>Écran Cuisine (KDS)</span>
+          </button>
         </div>
 
         {/* Cafe Selection List */}
         {!selectedCafe ? (
           <div className="glass-panel p-5 rounded-3xl border border-white/[0.08] space-y-4 shadow-2xl animate-fadeIn">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center space-x-2">
+            <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center space-x-2">
               <Store className="w-4 h-4 text-orange-400" />
-              <span>Établissements Disponibles</span>
+              <span>Sélectionnez l&apos;Établissement</span>
             </h2>
 
             <div className="space-y-3">
@@ -99,7 +135,7 @@ export const StaffPortal: React.FC = () => {
                   className="p-4 bg-white/[0.03] hover:bg-orange-500/[0.08] border border-white/[0.06] hover:border-orange-500/30 rounded-2xl flex items-center justify-between cursor-pointer transition-all duration-300 group active:scale-[0.98]"
                 >
                   <div className="flex items-center space-x-3.5">
-                    <img src={c.logoUrl || 'https://via.placeholder.com/50'} alt={c.name} className="w-12 h-12 rounded-xl object-cover ring-2 ring-white/10 group-hover:ring-orange-500/40" />
+                    <img src={c.logoUrl || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=300&q=80'} alt={c.name} className="w-12 h-12 rounded-xl object-cover ring-2 ring-white/10 group-hover:ring-orange-500/40" />
                     <div>
                       <h3 className="text-sm font-extrabold text-white group-hover:text-orange-400 transition-colors">{c.name}</h3>
                       <p className="text-[11px] text-gray-500 flex items-center mt-0.5">
@@ -121,8 +157,10 @@ export const StaffPortal: React.FC = () => {
               <div className="flex items-center space-x-3">
                 <img src={selectedCafe.logoUrl} alt={selectedCafe.name} className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/20" />
                 <div>
-                  <h2 className="text-sm font-bold text-white">{selectedCafe.name}</h2>
-                  <p className="text-[10px] text-orange-400 font-semibold">Service en Salle</p>
+                  <h2 className="text-sm font-black text-white">{selectedCafe.name}</h2>
+                  <p className="text-[10px] text-orange-400 font-bold">
+                    {portalMode === 'KITCHEN' ? '👨‍🍳 Écran Cuisinier' : '🧑‍💼 Service en Salle'}
+                  </p>
                 </div>
               </div>
               <button
@@ -133,10 +171,10 @@ export const StaffPortal: React.FC = () => {
               </button>
             </div>
 
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-1">
               <KeyRound className="w-8 h-8 text-orange-400 mx-auto animate-bounce" />
               <h3 className="text-sm font-extrabold text-white">Entrez votre Code PIN</h3>
-              <p className="text-[11px] text-gray-400">Code à 4 chiffres (ex: 1234 pour Youssef)</p>
+              <p className="text-[11px] text-gray-400">PIN Démo : <strong>1234</strong> (Youssef), <strong>5678</strong> (Ahmed), <strong>9999</strong> (Sirine)</p>
             </div>
 
             {/* PIN Dots Display */}

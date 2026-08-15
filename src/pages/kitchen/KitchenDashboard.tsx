@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import { ChefHat, Flame, Bell, CheckCircle, RefreshCw, Volume2, VolumeX, Sun, Activity, Clock } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ChefHat, Flame, Bell, CheckCircle, RefreshCw, Volume2, VolumeX, Sun, Activity, Clock, Tablet, Layout } from 'lucide-react';
 import { Order, OrderStatus } from '../../types';
 import { formatTableNumber } from '../../utils/tableCode';
 import { api } from '../../services/api';
@@ -8,6 +8,7 @@ import { stompService } from '../../services/stompService';
 
 export const KitchenDashboard: React.FC = () => {
   const { cafeSlug = 'monastir-lounge' } = useParams<{ cafeSlug: string }>();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [wakeLockActive, setWakeLockActive] = useState(false);
@@ -180,6 +181,14 @@ export const KitchenDashboard: React.FC = () => {
 
         {/* Actions */}
         <div className="flex items-center space-x-2">
+          <button
+            onClick={() => navigate(`/staff/${cafeSlug}`)}
+            className="flex items-center space-x-1.5 px-3.5 py-2.5 rounded-2xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border border-orange-500/30 text-xs font-black transition-all active:scale-95"
+            title="Revenir sur la tablette de service"
+          >
+            <Tablet className="w-4 h-4 text-orange-400" />
+            <span>Tablette Salle</span>
+          </button>
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
             className={`p-3 rounded-2xl border transition-all ${

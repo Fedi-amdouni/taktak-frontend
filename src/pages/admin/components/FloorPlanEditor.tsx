@@ -1,18 +1,38 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, Grid, Layout, Plus, Save, Square, Trash2, UserCheck, Edit3, MousePointer, Maximize2 } from 'lucide-react';
+import {
+  Check,
+  Grid,
+  Layout,
+  Plus,
+  Save,
+  Square,
+  Trash2,
+  UserCheck,
+  Edit3,
+  MousePointer,
+  Maximize2,
+  Layers,
+  DoorOpen,
+  Wine,
+  Sparkles,
+  Magnet,
+  RotateCcw,
+  Armchair
+} from 'lucide-react';
 import { FloorObstacle, FloorPlan, TableEntity, TableShape, Waiter } from '../../../types';
 import { api } from '../../../services/api';
 import { formatTableCode } from '../../../utils/tableCode';
 
 interface Props { cafeSlug: string }
 type Selection = { type: 'table' | 'obstacle'; id: string } | null;
-type EditorMode = 'SELECT' | 'DRAW_WALL';
+type EditorMode = 'SELECT' | 'DRAW_WALL' | 'DRAW_BAR' | 'DRAW_DOOR';
 
 const WAITER_COLORS = [
-  { bg: 'bg-blue-500/25', border: 'border-blue-400', text: 'text-blue-300' },
-  { bg: 'bg-emerald-500/25', border: 'border-emerald-400', text: 'text-emerald-300' },
-  { bg: 'bg-purple-500/25', border: 'border-purple-400', text: 'text-purple-300' },
-  { bg: 'bg-rose-500/25', border: 'border-rose-400', text: 'text-rose-300' },
+  { bg: 'bg-blue-500/25', border: 'border-blue-400', text: 'text-blue-300', dot: '#60a5fa' },
+  { bg: 'bg-emerald-500/25', border: 'border-emerald-400', text: 'text-emerald-300', dot: '#34d399' },
+  { bg: 'bg-purple-500/25', border: 'border-purple-400', text: 'text-purple-300', dot: '#c084fc' },
+  { bg: 'bg-rose-500/25', border: 'border-rose-400', text: 'text-rose-300', dot: '#fb7185' },
+  { bg: 'bg-amber-500/25', border: 'border-amber-400', text: 'text-amber-300', dot: '#fbbf24' },
 ];
 
 export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
@@ -23,9 +43,10 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>('SELECT');
+  const [snapToGrid, setSnapToGrid] = useState(true);
 
   // Drawing & Resizing state
-  const [drawingWall, setDrawingWall] = useState<{ startX: number; startY: number; currentX: number; currentY: number } | null>(null);
+  const [drawingBox, setDrawingBox] = useState<{ startX: number; startY: number; currentX: number; currentY: number; type: EditorMode } | null>(null);
 
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanWidth, setNewPlanWidth] = useState(12);
@@ -45,6 +66,11 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
   const planTables = activePlan ? tables.filter((table) => table.floorPlanId === activePlan.id) : [];
   const selectedTable = selection?.type === 'table' ? tables.find((table) => table.id === selection.id) : undefined;
   const selectedObstacle = selection?.type === 'obstacle' ? obstacles.find((item) => item.id === selection.id) : undefined;
+
+  const snap = (val: number, step = 2): number => {
+    if (!snapToGrid) return Math.max(1, Math.min(99, Math.round(val)));
+    return Math.round(Math.max(2, Math.min(98, val)) / step) * step;
+  };
 
   const loadBase = async () => {
     try {
@@ -104,13 +130,33 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
     setNewTableNumber(next); setNewTableCode(formatTableCode(undefined, next)); setError('');
   };
 
-  const addWall = (orientation: 'HORIZONTAL' | 'VERTICAL') => {
+  const addPresetObstacle = (type: 'WALL_H' | 'WALL_V' | 'BAR' | 'DOOR') => {
     if (!activePlan) return;
+    let label = 'Mur';
+    let width = 25;
+    let height = 3.5;
+
+    if (type === 'WALL_V') {
+      width = 3.5;
+      height = 25;
+    } else if (type === 'BAR') {
+      label = 'Comptoir Bar';
+      width = 35;
+      height = 8;
+    } else if (type === 'DOOR') {
+      label = 'Entrée';
+      width = 12;
+      height = 4;
+    }
+
     const item: FloorObstacle = {
-      id: `temp_${Date.now()}`, floorPlanId: activePlan.id, label: 'Mur',
-      posX: 50, posY: 50,
-      width: orientation === 'HORIZONTAL' ? 30 : 4,
-      height: orientation === 'HORIZONTAL' ? 4 : 30,
+      id: `temp_${Date.now()}`,
+      floorPlanId: activePlan.id,
+      label,
+      posX: 50,
+      posY: 50,
+      width,
+      height,
     };
     setObstacles((current) => [...current, item]);
     setSelection({ type: 'obstacle', id: item.id });
@@ -118,28 +164,28 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
 
   // --- CANVAS POINTER EVENT HANDLERS (Drawing Wall & Moving Elements) ---
   const handleCanvasPointerDown = (event: React.PointerEvent) => {
-    if (editorMode === 'DRAW_WALL') {
+    if (editorMode !== 'SELECT') {
       event.preventDefault();
       const canvas = canvasRef.current;
       if (!canvas || !activePlan) return;
       const rect = canvas.getBoundingClientRect();
-      const startX = Math.round(Math.max(2, Math.min(98, ((event.clientX - rect.left) / rect.width) * 100)) / 2) * 2;
-      const startY = Math.round(Math.max(2, Math.min(98, ((event.clientY - rect.top) / rect.height) * 100)) / 2) * 2;
+      const startX = snap(((event.clientX - rect.left) / rect.width) * 100);
+      const startY = snap(((event.clientY - rect.top) / rect.height) * 100);
 
-      setDrawingWall({ startX, startY, currentX: startX, currentY: startY });
+      setDrawingBox({ startX, startY, currentX: startX, currentY: startY, type: editorMode });
 
       const handlePointerMove = (e: PointerEvent) => {
-        const currentX = Math.round(Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100)) / 2) * 2;
-        const currentY = Math.round(Math.max(2, Math.min(98, ((e.clientY - rect.top) / rect.height) * 100)) / 2) * 2;
-        setDrawingWall((prev) => prev ? { ...prev, currentX, currentY } : null);
+        const currentX = snap(((e.clientX - rect.left) / rect.width) * 100);
+        const currentY = snap(((e.clientY - rect.top) / rect.height) * 100);
+        setDrawingBox((prev) => prev ? { ...prev, currentX, currentY } : null);
       };
 
       const handlePointerUp = (e: PointerEvent) => {
         window.removeEventListener('pointermove', handlePointerMove);
         window.removeEventListener('pointerup', handlePointerUp);
 
-        const endX = Math.round(Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100)) / 2) * 2;
-        const endY = Math.round(Math.max(2, Math.min(98, ((e.clientY - rect.top) / rect.height) * 100)) / 2) * 2;
+        const endX = snap(((e.clientX - rect.left) / rect.width) * 100);
+        const endY = snap(((e.clientY - rect.top) / rect.height) * 100);
 
         const deltaX = Math.abs(endX - startX);
         const deltaY = Math.abs(endY - startY);
@@ -150,19 +196,23 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
           const posX = Math.min(startX, endX) + width / 2;
           const posY = Math.min(startY, endY) + height / 2;
 
-          const newWall: FloorObstacle = {
+          let label = 'Mur';
+          if (editorMode === 'DRAW_BAR') label = 'Comptoir Bar';
+          if (editorMode === 'DRAW_DOOR') label = 'Entrée';
+
+          const newObstacle: FloorObstacle = {
             id: `temp_${Date.now()}`,
             floorPlanId: activePlan.id,
-            label: 'Mur',
+            label,
             posX,
             posY,
             width,
             height,
           };
-          setObstacles((current) => [...current, newWall]);
-          setSelection({ type: 'obstacle', id: newWall.id });
+          setObstacles((current) => [...current, newObstacle]);
+          setSelection({ type: 'obstacle', id: newObstacle.id });
         }
-        setDrawingWall(null);
+        setDrawingBox(null);
         setEditorMode('SELECT');
       };
 
@@ -177,7 +227,7 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
   const pointerDown = (selected: NonNullable<Selection>, event: React.PointerEvent) => {
     event.stopPropagation();
     event.preventDefault();
-    if (editorMode === 'DRAW_WALL') return;
+    if (editorMode !== 'SELECT') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -188,8 +238,8 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
     setSelection(selected);
     dragRef.current = {
       selection: selected,
-      offsetX: event.clientX - rect.left - item.posX / 100 * rect.width,
-      offsetY: event.clientY - rect.top - item.posY / 100 * rect.height,
+      offsetX: event.clientX - rect.left - (item.posX / 100) * rect.width,
+      offsetY: event.clientY - rect.top - (item.posY / 100) * rect.height,
     };
     window.addEventListener('pointermove', pointerMove);
     window.addEventListener('pointerup', pointerUp);
@@ -200,8 +250,8 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
     const canvas = canvasRef.current;
     if (!drag || !canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const posX = Math.round(Math.max(2, Math.min(98, ((event.clientX - rect.left - drag.offsetX) / rect.width) * 100)) / 2) * 2;
-    const posY = Math.round(Math.max(2, Math.min(98, ((event.clientY - rect.top - drag.offsetY) / rect.height) * 100)) / 2) * 2;
+    const posX = snap(((event.clientX - rect.left - drag.offsetX) / rect.width) * 100);
+    const posY = snap(((event.clientY - rect.top - drag.offsetY) / rect.height) * 100);
     if (drag.selection.type === 'table') {
       setTables((current) => current.map((table) => table.id === drag.selection.id ? { ...table, posX, posY } : table));
     } else {
@@ -252,16 +302,16 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
           let newPosY = resize.initialPosY;
 
           if (resize.handle === 'E') {
-            newWidth = Math.round(Math.max(2, Math.min(95, resize.initialW + deltaXPercent)) / 2) * 2;
+            newWidth = snap(Math.max(2, Math.min(95, resize.initialW + deltaXPercent)));
             newPosX = resize.initialPosX + (newWidth - resize.initialW) / 2;
           } else if (resize.handle === 'W') {
-            newWidth = Math.round(Math.max(2, Math.min(95, resize.initialW - deltaXPercent)) / 2) * 2;
+            newWidth = snap(Math.max(2, Math.min(95, resize.initialW - deltaXPercent)));
             newPosX = resize.initialPosX - (newWidth - resize.initialW) / 2;
           } else if (resize.handle === 'S') {
-            newHeight = Math.round(Math.max(2, Math.min(95, resize.initialH + deltaYPercent)) / 2) * 2;
+            newHeight = snap(Math.max(2, Math.min(95, resize.initialH + deltaYPercent)));
             newPosY = resize.initialPosY + (newHeight - resize.initialH) / 2;
           } else if (resize.handle === 'N') {
-            newHeight = Math.round(Math.max(2, Math.min(95, resize.initialH - deltaYPercent)) / 2) * 2;
+            newHeight = snap(Math.max(2, Math.min(95, resize.initialH - deltaYPercent)));
             newPosY = resize.initialPosY - (newHeight - resize.initialH) / 2;
           }
 
@@ -315,7 +365,6 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
     setWaiters(await api.getActiveWaiters(cafeSlug));
   };
 
-  // Convert percentages to approximate real meters for display
   const getObstacleMeters = (obstacle: FloorObstacle) => {
     if (!activePlan) return { w: '0', h: '0' };
     const w = ((obstacle.width / 100) * activePlan.width).toFixed(1);
@@ -323,33 +372,148 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
     return { w, h };
   };
 
+  const renderObstacleGraphic = (item: FloorObstacle, isSelected: boolean) => {
+    const isBar = item.label.toLowerCase().includes('bar') || item.label.toLowerCase().includes('comptoir');
+    const isDoor = item.label.toLowerCase().includes('porte') || item.label.toLowerCase().includes('entrée');
+    const meters = getObstacleMeters(item);
+
+    if (isBar) {
+      return (
+        <div
+          key={item.id}
+          onPointerDown={(e) => pointerDown({ type: 'obstacle', id: item.id }, e)}
+          style={{
+            left: `${item.posX}%`,
+            top: `${item.posY}%`,
+            width: `${item.width}%`,
+            height: `${item.height}%`,
+            transform: 'translate(-50%,-50%)',
+          }}
+          className={`absolute touch-none cursor-move rounded-xl border-2 shadow-2xl flex items-center justify-between px-2 text-xs font-black transition-all ${
+            isSelected
+              ? 'bg-gradient-to-r from-amber-700 to-amber-900 border-amber-400 ring-4 ring-amber-500/30 z-30'
+              : 'bg-gradient-to-r from-amber-900/90 to-[#3d1e08]/90 border-amber-600/70 hover:border-amber-400'
+          } text-amber-200`}
+        >
+          <div className="flex items-center gap-1.5 truncate">
+            <Wine className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+            <span className="truncate">{item.label}</span>
+          </div>
+          <span className="text-[9px] opacity-75 font-mono ml-1">{meters.w}m</span>
+          {isSelected && renderResizeHandles(item.id)}
+        </div>
+      );
+    }
+
+    if (isDoor) {
+      return (
+        <div
+          key={item.id}
+          onPointerDown={(e) => pointerDown({ type: 'obstacle', id: item.id }, e)}
+          style={{
+            left: `${item.posX}%`,
+            top: `${item.posY}%`,
+            width: `${item.width}%`,
+            height: `${item.height}%`,
+            transform: 'translate(-50%,-50%)',
+          }}
+          className={`absolute touch-none cursor-move rounded-lg border-2 border-dashed flex items-center justify-center text-xs font-black transition-all ${
+            isSelected
+              ? 'bg-emerald-500/30 border-emerald-300 ring-4 ring-emerald-500/30 z-30 text-white'
+              : 'bg-emerald-950/60 border-emerald-500/70 hover:border-emerald-300 text-emerald-300'
+          }`}
+        >
+          <DoorOpen className="w-3.5 h-3.5 mr-1" />
+          <span>{item.label}</span>
+          {isSelected && renderResizeHandles(item.id)}
+        </div>
+      );
+    }
+
+    // Default Wall / Partition
+    return (
+      <div
+        key={item.id}
+        onPointerDown={(e) => pointerDown({ type: 'obstacle', id: item.id }, e)}
+        style={{
+          left: `${item.posX}%`,
+          top: `${item.posY}%`,
+          width: `${item.width}%`,
+          height: `${item.height}%`,
+          transform: 'translate(-50%,-50%)',
+        }}
+        className={`absolute touch-none cursor-move bg-slate-800 border-2 flex items-center justify-center text-[10px] font-black text-slate-200 rounded-lg shadow-xl transition-all ${
+          isSelected
+            ? 'border-orange-400 ring-4 ring-orange-500/30 z-30 shadow-orange-500/20'
+            : 'border-slate-600 hover:border-slate-400'
+        }`}
+      >
+        <Square className="w-3 h-3 mr-1 text-slate-400" />
+        <span className="truncate">{item.label}</span>
+        <span className="text-[8px] opacity-75 font-mono ml-1">({meters.w}m)</span>
+        {isSelected && renderResizeHandles(item.id)}
+      </div>
+    );
+  };
+
+  const renderResizeHandles = (obstacleId: string) => (
+    <>
+      <div
+        onPointerDown={(e) => handleResizePointerDown(obstacleId, 'E', e)}
+        className="resize-handle top-1/2 -right-2 -translate-y-1/2 cursor-e-resize"
+        title="Largeur Est"
+      />
+      <div
+        onPointerDown={(e) => handleResizePointerDown(obstacleId, 'W', e)}
+        className="resize-handle top-1/2 -left-2 -translate-y-1/2 cursor-w-resize"
+        title="Largeur Ouest"
+      />
+      <div
+        onPointerDown={(e) => handleResizePointerDown(obstacleId, 'S', e)}
+        className="resize-handle -bottom-2 left-1/2 -translate-x-1/2 cursor-s-resize"
+        title="Épaisseur Sud"
+      />
+      <div
+        onPointerDown={(e) => handleResizePointerDown(obstacleId, 'N', e)}
+        className="resize-handle -top-2 left-1/2 -translate-x-1/2 cursor-n-resize"
+        title="Épaisseur Nord"
+      />
+    </>
+  );
+
   return (
     <div className="space-y-5">
       {/* Header Panel */}
       <div className="glass-panel p-4 sm:p-5 rounded-3xl flex flex-wrap items-center justify-between gap-3 border border-white/[0.08]">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl shadow-lg shadow-orange-500/20">
-            <Layout className="w-6 h-6 text-white" />
+          <div className="p-3 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl shadow-lg shadow-orange-500/20 text-white">
+            <Layout className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-black text-white">Plan de salle</h2>
-            <p className="text-xs text-gray-400">Touchez un élément pour le déplacer ou le modifier. Une action à la fois.</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-black text-white">Éditeur de Plan 2D</h2>
+              <span className="text-[10px] font-black uppercase bg-orange-500/15 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full">
+                Architecte
+              </span>
+            </div>
+            <p className="text-xs text-gray-400">Positionnez vos tables, dessinez les murs et comptoirs en direct.</p>
           </div>
         </div>
+
         {activePlan && (
           <div className="flex items-center gap-2">
             {saved && (
-              <span className="text-emerald-400 text-xs font-extrabold flex items-center gap-1 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+              <span className="text-emerald-400 text-xs font-black flex items-center gap-1 bg-emerald-500/15 px-3 py-1.5 rounded-xl border border-emerald-500/25 animate-fadeIn">
                 <Check className="w-4 h-4" /> Plan Enregistré !
               </span>
             )}
             <button
               onClick={save}
               disabled={saving}
-              className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-5 py-2.5 rounded-xl text-xs font-extrabold shadow-lg shadow-orange-500/20 flex items-center gap-2 disabled:opacity-50 transition-all active:scale-95"
+              className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white px-5 py-2.5 rounded-2xl text-xs font-black shadow-lg shadow-orange-500/25 flex items-center gap-2 disabled:opacity-50 transition-all active:scale-95"
             >
               <Save className="w-4 h-4" />
-              {saving ? 'Sauvegarde…' : 'Sauvegarder Plan'}
+              <span>{saving ? 'Sauvegarde…' : 'Sauvegarder le Plan'}</span>
             </button>
           </div>
         )}
@@ -357,54 +521,57 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
 
       {error && <div className="rounded-2xl border border-red-500/30 bg-red-500/10 text-red-300 px-4 py-3 text-xs font-bold">{error}</div>}
 
-      {/* Plan Selector & New Plan bar */}
+      {/* Plan Selector & New Plan Bar */}
       <div className="flex flex-wrap gap-2 items-center">
         {plans.map((plan) => (
           <button
             key={plan.id}
             onClick={() => setActivePlanId(plan.id)}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+            className={`px-4 py-2.5 rounded-2xl text-xs font-black border transition-all ${
               activePlanId === plan.id
-                ? 'bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/20 scale-105'
+                ? 'bg-gradient-to-r from-orange-500 to-amber-500 border-orange-400 text-white shadow-lg shadow-orange-500/25 scale-[1.02]'
                 : 'bg-white/[0.03] border-white/[0.08] text-gray-400 hover:bg-white/[0.06] hover:text-white'
             }`}
           >
-            {plan.name} <span className="opacity-60">({tables.filter((t) => t.floorPlanId === plan.id).length} tables)</span>
+            {plan.name} <span className="opacity-75 font-normal">({tables.filter((t) => t.floorPlanId === plan.id).length} tables)</span>
           </button>
         ))}
-        <div className="flex flex-wrap gap-2 glass-panel p-2 rounded-2xl border border-white/[0.08] items-center">
+
+        <div className="flex flex-wrap gap-2 glass-panel p-1.5 rounded-2xl border border-white/[0.08] items-center">
           <input
-            aria-label="Nom du nouveau plan"
+            aria-label="Nom du nouvel espace"
             value={newPlanName}
             onChange={(e) => setNewPlanName(e.target.value)}
-            placeholder="Nom: Terrasse, Étage…"
-            className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white"
+            placeholder="Nouvel Espace (ex: Terrasse)"
+            className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-gray-500 outline-none focus:border-orange-400"
           />
-          <input
-            aria-label="Largeur du nouveau plan"
-            type="number"
-            min="4"
-            max="50"
-            value={newPlanWidth}
-            onChange={(e) => setNewPlanWidth(Number(e.target.value))}
-            className="w-16 bg-gray-950 border border-gray-800 rounded-xl px-2.5 py-2 text-xs text-white"
-          />
-          <span className="self-center text-gray-500 text-xs">×</span>
-          <input
-            aria-label="Hauteur du nouveau plan"
-            type="number"
-            min="4"
-            max="50"
-            value={newPlanHeight}
-            onChange={(e) => setNewPlanHeight(Number(e.target.value))}
-            className="w-16 bg-gray-950 border border-gray-800 rounded-xl px-2.5 py-2 text-xs text-white"
-          />
-          <span className="text-xs text-gray-500 mr-1">m</span>
+          <div className="flex items-center gap-1 text-xs text-gray-400">
+            <input
+              aria-label="Largeur"
+              type="number"
+              min="4"
+              max="50"
+              value={newPlanWidth}
+              onChange={(e) => setNewPlanWidth(Number(e.target.value))}
+              className="w-12 bg-gray-950 border border-gray-800 rounded-xl px-2 py-1.5 text-xs text-white font-bold text-center"
+            />
+            <span>×</span>
+            <input
+              aria-label="Hauteur"
+              type="number"
+              min="4"
+              max="50"
+              value={newPlanHeight}
+              onChange={(e) => setNewPlanHeight(Number(e.target.value))}
+              className="w-12 bg-gray-950 border border-gray-800 rounded-xl px-2 py-1.5 text-xs text-white font-bold text-center"
+            />
+            <span className="text-gray-500 font-bold mr-1">m</span>
+          </div>
           <button
             onClick={createPlan}
-            className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+            className="bg-orange-500/15 hover:bg-orange-500/25 text-orange-400 border border-orange-500/30 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 transition-all"
           >
-            <Plus className="w-4 h-4" /> Créer un espace
+            <Plus className="w-3.5 h-3.5" /> Créer
           </button>
         </div>
       </div>
@@ -412,9 +579,9 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
       {!activePlan ? (
         <div className="glass-panel rounded-3xl border border-dashed border-white/[0.1] py-24 text-center space-y-3">
           <Layout className="w-14 h-14 mx-auto text-gray-700 mb-2 animate-pulse" />
-          <h3 className="font-black text-white text-lg">Aucun plan de salle créé</h3>
+          <h3 className="font-black text-white text-lg">Aucun plan de salle sélectionné</h3>
           <p className="text-xs text-gray-500 max-w-sm mx-auto">
-            Créez votre premier espace (ex: Salle Principale 12m × 8m) ci-dessus pour commencer à dessiner vos murs.
+            Créez votre premier espace ci-dessus pour modéliser votre salle en 2D.
           </p>
         </div>
       ) : (
@@ -423,76 +590,100 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
           <div className="lg:col-span-3 glass-panel p-3 sm:p-4 rounded-3xl border border-white/[0.08] space-y-3 overflow-hidden">
             {/* Toolbar Header */}
             <div className="flex flex-wrap justify-between items-center gap-3 bg-white/[0.02] p-3 rounded-2xl border border-white/[0.06]">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <Grid className="w-4 h-4 text-orange-400" />
                 <input
                   aria-label="Nom du plan"
                   value={activePlan.name}
                   onChange={(e) => updateActivePlan({ name: e.target.value })}
-                  className="bg-transparent font-black text-white text-base border-b border-white/10 focus:border-orange-400"
+                  className="bg-transparent font-black text-white text-base border-b border-white/10 focus:border-orange-400 outline-none px-1"
                 />
               </div>
 
               {/* DRAW MODE TOGGLE BAR */}
-              <div className="flex items-center bg-gray-950/80 p-1 rounded-xl border border-white/10">
+              <div className="flex items-center gap-1 bg-gray-950/90 p-1 rounded-2xl border border-white/10 flex-wrap">
                 <button
                   onClick={() => setEditorMode('SELECT')}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
                     editorMode === 'SELECT'
-                      ? 'bg-orange-500 text-white shadow-md'
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
                   <MousePointer className="w-3.5 h-3.5" />
-                  <span>Sélection / Déplacer</span>
+                  <span>Sélectionner</span>
                 </button>
                 <button
                   onClick={() => setEditorMode('DRAW_WALL')}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
                     editorMode === 'DRAW_WALL'
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md animate-pulse'
+                      ? 'bg-amber-500 text-white shadow-md animate-pulse'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
                   <Edit3 className="w-3.5 h-3.5" />
-                  <span>✏️ Dessiner un Mur</span>
+                  <span>✏️ Mur</span>
+                </button>
+                <button
+                  onClick={() => setEditorMode('DRAW_BAR')}
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                    editorMode === 'DRAW_BAR'
+                      ? 'bg-amber-700 text-white shadow-md animate-pulse'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Wine className="w-3.5 h-3.5" />
+                  <span>🍸 Bar</span>
+                </button>
+                <button
+                  onClick={() => setEditorMode('DRAW_DOOR')}
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                    editorMode === 'DRAW_DOOR'
+                      ? 'bg-emerald-600 text-white shadow-md animate-pulse'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <DoorOpen className="w-3.5 h-3.5" />
+                  <span>🚪 Porte</span>
                 </button>
               </div>
 
-              {/* Dimensions Control */}
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <label className="flex items-center">
-                  L:
-                  <input
-                    type="number"
-                    min="4"
-                    max="50"
-                    value={activePlan.width}
-                    onChange={(e) => updateActivePlan({ width: Number(e.target.value) })}
-                    className="w-14 ml-1 bg-gray-950 border border-gray-800 rounded-lg px-2 py-1 text-white font-bold"
-                  />
-                </label>
-                <span>×</span>
-                <label className="flex items-center">
-                  H:
-                  <input
-                    type="number"
-                    min="4"
-                    max="50"
-                    value={activePlan.height}
-                    onChange={(e) => updateActivePlan({ height: Number(e.target.value) })}
-                    className="w-14 ml-1 bg-gray-950 border border-gray-800 rounded-lg px-2 py-1 text-white font-bold"
-                  />
-                </label>
-                <span className="text-gray-500 font-bold">m</span>
+              {/* Snap & Metric Scale Controls */}
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <button
+                  onClick={() => setSnapToGrid(!snapToGrid)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[11px] font-bold transition-all ${
+                    snapToGrid
+                      ? 'bg-orange-500/15 text-orange-300 border-orange-500/30'
+                      : 'bg-white/[0.04] text-gray-500 border-white/[0.06]'
+                  }`}
+                  title="Alignement automatique sur la grille"
+                >
+                  <Magnet className="w-3.5 h-3.5" />
+                  <span>Grille {snapToGrid ? 'ON' : 'OFF'}</span>
+                </button>
+
+                <div className="flex items-center gap-1.5 font-mono text-xs">
+                  <span className="text-white font-bold">{activePlan.width}m</span>
+                  <span className="text-gray-600">×</span>
+                  <span className="text-white font-bold">{activePlan.height}m</span>
+                </div>
               </div>
             </div>
 
             {/* Instruction Tip */}
-            {editorMode === 'DRAW_WALL' && (
-              <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 animate-fadeIn">
-                <Edit3 className="w-4 h-4 text-amber-400 animate-bounce" />
-                <span>Mode Dessin Actif : Cliquez et glissez sur le plan pour tracer un mur directement !</span>
+            {editorMode !== 'SELECT' && (
+              <div className="bg-amber-500/15 border border-amber-500/30 text-amber-200 px-4 py-2 rounded-2xl text-xs font-bold flex items-center justify-between animate-fadeIn">
+                <span className="flex items-center gap-2">
+                  <Edit3 className="w-4 h-4 text-amber-400 animate-bounce" />
+                  <span>Cliquez et glissez sur le plan pour tracer un(e) {editorMode === 'DRAW_WALL' ? 'Mur' : editorMode === 'DRAW_BAR' ? 'Comptoir Bar' : 'Porte / Entrée'} !</span>
+                </span>
+                <button
+                  onClick={() => setEditorMode('SELECT')}
+                  className="text-[10px] underline hover:text-white font-black"
+                >
+                  Annuler
+                </button>
               </div>
             )}
 
@@ -500,87 +691,46 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
             <div
               ref={canvasRef}
               onPointerDown={handleCanvasPointerDown}
-              className={`relative w-full min-h-[380px] sm:min-h-[460px] bg-gray-950/95 rounded-2xl border-2 border-white/10 overflow-hidden select-none touch-none ${
-                editorMode === 'DRAW_WALL' ? 'canvas-crosshair border-amber-500/50' : ''
+              className={`relative w-full min-h-[420px] sm:min-h-[500px] bg-[#070a12] rounded-3xl border-2 border-white/10 overflow-hidden select-none touch-none shadow-2xl ${
+                editorMode !== 'SELECT' ? 'canvas-crosshair border-amber-400/50' : ''
               }`}
               style={{
                 aspectRatio: `${activePlan.width}/${activePlan.height}`,
-                backgroundImage: 'radial-gradient(circle, rgba(255,255,255,.08) 1px, transparent 1px)',
+                backgroundImage: `
+                  linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px)
+                `,
                 backgroundSize: '24px 24px',
               }}
             >
+              {/* Metric Scale Guide Ticks at Top */}
+              <div className="absolute top-0 left-0 right-0 h-4 border-b border-white/[0.08] flex justify-between px-2 text-[8px] font-mono text-gray-600 pointer-events-none">
+                <span>0m</span>
+                <span>{(activePlan.width / 4).toFixed(0)}m</span>
+                <span>{(activePlan.width / 2).toFixed(0)}m</span>
+                <span>{((activePlan.width * 3) / 4).toFixed(0)}m</span>
+                <span>{activePlan.width}m</span>
+              </div>
+
               {/* Drawing Preview Line */}
-              {drawingWall && (
+              {drawingBox && (
                 <div
                   style={{
-                    left: `${Math.min(drawingWall.startX, drawingWall.currentX)}%`,
-                    top: `${Math.min(drawingWall.startY, drawingWall.currentY)}%`,
-                    width: `${Math.max(3, Math.abs(drawingWall.currentX - drawingWall.startX))}%`,
-                    height: `${Math.max(3, Math.abs(drawingWall.currentY - drawingWall.startY))}%`,
+                    left: `${Math.min(drawingBox.startX, drawingBox.currentX)}%`,
+                    top: `${Math.min(drawingBox.startY, drawingBox.currentY)}%`,
+                    width: `${Math.max(2, Math.abs(drawingBox.currentX - drawingBox.startX))}%`,
+                    height: `${Math.max(2, Math.abs(drawingBox.currentY - drawingBox.startY))}%`,
                   }}
-                  className="absolute bg-amber-500/40 border-2 border-dashed border-amber-400 rounded-lg pointer-events-none z-20 flex items-center justify-center text-[10px] font-black text-amber-300"
+                  className="absolute bg-amber-500/30 border-2 border-dashed border-amber-400 rounded-lg pointer-events-none z-30 flex items-center justify-center text-[10px] font-black text-amber-300"
                 >
-                  Mur en cours...
+                  {drawingBox.type === 'DRAW_BAR' ? '🍸 Bar…' : drawingBox.type === 'DRAW_DOOR' ? '🚪 Porte…' : '🧱 Mur…'}
                 </div>
               )}
 
-              {/* OBSTACLES / WALLS */}
+              {/* OBSTACLES & WALLS */}
               {obstacles.map((item) => {
                 const isSelected = selection?.type === 'obstacle' && selection.id === item.id;
-                const meters = getObstacleMeters(item);
-
-                return (
-                  <div
-                    key={item.id}
-                    onPointerDown={(e) => pointerDown({ type: 'obstacle', id: item.id }, e)}
-                    style={{
-                      left: `${item.posX}%`,
-                      top: `${item.posY}%`,
-                      width: `${item.width}%`,
-                      height: `${item.height}%`,
-                      transform: 'translate(-50%,-50%)',
-                    }}
-                    className={`absolute touch-none cursor-move bg-slate-700/80 border-2 flex items-center justify-center text-[10px] font-bold text-slate-200 rounded-lg shadow-lg transition-shadow ${
-                      isSelected
-                        ? 'border-orange-400 ring-4 ring-orange-500/30 z-30 shadow-orange-500/20'
-                        : 'border-slate-500/80 hover:border-slate-300'
-                    }`}
-                  >
-                    <Square className="w-3 h-3 mr-1 text-slate-400" />
-                    <span>{item.label}</span>
-                    <span className="text-[8px] opacity-75 ml-1">({meters.w}m)</span>
-
-                    {/* INTERACTIVE RESIZE HANDLES FOR SELECTED WALL */}
-                    {isSelected && (
-                      <>
-                        {/* Right Edge (East) */}
-                        <div
-                          onPointerDown={(e) => handleResizePointerDown(item.id, 'E', e)}
-                          className="resize-handle top-1/2 -right-2 -translate-y-1/2 cursor-e-resize"
-                          title="Redimensionner Largeur (Est)"
-                        />
-                        {/* Left Edge (West) */}
-                        <div
-                          onPointerDown={(e) => handleResizePointerDown(item.id, 'W', e)}
-                          className="resize-handle top-1/2 -left-2 -translate-y-1/2 cursor-w-resize"
-                          title="Redimensionner Largeur (Ouest)"
-                        />
-                        {/* Bottom Edge (South) */}
-                        <div
-                          onPointerDown={(e) => handleResizePointerDown(item.id, 'S', e)}
-                          className="resize-handle -bottom-2 left-1/2 -translate-x-1/2 cursor-s-resize"
-                          title="Redimensionner Épaisseur (Sud)"
-                        />
-                        {/* Top Edge (North) */}
-                        <div
-                          onPointerDown={(e) => handleResizePointerDown(item.id, 'N', e)}
-                          className="resize-handle -top-2 left-1/2 -translate-x-1/2 cursor-n-resize"
-                          title="Redimensionner Épaisseur (Nord)"
-                        />
-                      </>
-                    )}
-                  </div>
-                );
+                return renderObstacleGraphic(item, isSelected);
               })}
 
               {/* TABLES */}
@@ -588,6 +738,7 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
                 const waiter = waiterFor(table.tableNumber);
                 const color = waiter ? WAITER_COLORS[Math.max(0, waiters.findIndex((w) => w.id === waiter.id)) % WAITER_COLORS.length] : null;
                 const isSelected = selection?.type === 'table' && selection.id === table.id;
+                const seats = table.seatsCount || 4;
 
                 return (
                   <div
@@ -598,22 +749,36 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
                       top: `${table.posY}%`,
                       transform: 'translate(-50%,-50%)',
                     }}
-                    className={`absolute w-16 h-16 touch-none cursor-move flex flex-col items-center justify-center border shadow-xl transition-all ${
+                    className={`absolute touch-none cursor-move flex flex-col items-center justify-center border-2 shadow-2xl transition-all ${
                       table.shape === 'ROUND'
-                        ? 'rounded-full'
+                        ? 'w-18 h-18 rounded-full'
                         : table.shape === 'SOFA'
-                        ? 'w-24 h-14 rounded-2xl'
-                        : 'rounded-2xl'
+                        ? 'w-24 h-15 rounded-2xl'
+                        : table.shape === 'RECTANGLE'
+                        ? 'w-22 h-16 rounded-2xl'
+                        : 'w-18 h-18 rounded-2xl'
                     } ${
                       isSelected
-                        ? 'bg-orange-500/30 border-orange-400 ring-4 ring-orange-500/30 z-30 scale-110 shadow-orange-500/30'
+                        ? 'bg-orange-500/40 border-orange-400 ring-4 ring-orange-500/40 z-30 scale-105 shadow-orange-500/30'
                         : color
                         ? `${color.bg} ${color.border}`
-                        : 'bg-gray-800/90 border-gray-600 hover:border-gray-400'
+                        : 'bg-[#151a28] border-gray-600 hover:border-gray-400'
                     }`}
                   >
-                    <span className="text-xs font-black text-white">{formatTableCode(table.tableCode, table.tableNumber)}</span>
-                    <span className="text-[8px] font-bold text-gray-400 truncate max-w-[50px]">{waiter?.name || 'Libre'}</span>
+                    {/* Seats Count Miniature Dots */}
+                    <div className="absolute -top-1.5 flex gap-0.5">
+                      {Array.from({ length: Math.min(seats, 6) }).map((_, si) => (
+                        <span key={si} className="w-1.5 h-1.5 rounded-full bg-white/40 border border-black/40" />
+                      ))}
+                    </div>
+
+                    <span className="text-xs font-black text-white tracking-tight">
+                      {formatTableCode(table.tableCode, table.tableNumber)}
+                    </span>
+                    <span className="text-[9px] font-bold text-gray-300 truncate max-w-[54px] flex items-center gap-0.5">
+                      {color && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color.dot }} />}
+                      {waiter?.name || 'Libre'}
+                    </span>
                   </div>
                 );
               })}
@@ -622,15 +787,15 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
 
           {/* Right Control Sidebar */}
           <div className="space-y-4">
-            {/* Quick Actions Panel */}
+            {/* Quick Actions Panel: Add Table */}
             <div className="glass-panel p-4 rounded-3xl border border-white/[0.08] space-y-3">
-              <h3 className="font-black text-xs uppercase text-gray-400 flex items-center gap-1.5">
+              <h3 className="font-black text-xs uppercase text-gray-300 flex items-center gap-1.5">
                 <Plus className="w-4 h-4 text-orange-400" />
-                <span>Ajouter une table</span>
+                <span>Ajouter une Table</span>
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] text-gray-500 block mb-1">N° Table</label>
+                  <label className="text-[10px] text-gray-400 font-bold block mb-1">N° Table</label>
                   <input
                     aria-label="Numéro de table"
                     type="number"
@@ -640,37 +805,37 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
                       setNewTableNumber(value);
                       setNewTableCode(formatTableCode(undefined, value));
                     }}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white font-bold"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-gray-500 block mb-1">Code</label>
+                  <label className="text-[10px] text-gray-400 font-bold block mb-1">Code</label>
                   <input
                     aria-label="Code de table"
                     value={newTableCode}
                     onChange={(e) => setNewTableCode(e.target.value)}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs uppercase text-white"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs uppercase text-white font-bold"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1">Forme</label>
+                <label className="text-[10px] text-gray-400 font-bold block mb-1">Forme</label>
                 <select
                   aria-label="Forme de table"
                   value={newShape}
                   onChange={(e) => setNewShape(e.target.value as TableShape)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white"
+                  className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white font-bold"
                 >
                   <option value="SQUARE">Carrée ⬛</option>
                   <option value="ROUND">Ronde 🔴</option>
                   <option value="RECTANGLE">Rectangle 🟩</option>
-                  <option value="SOFA">Banquette / Lounge 🛋️</option>
+                  <option value="SOFA">Banquette Lounge 🛋️</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1">Nombre de places</label>
+                <label className="text-[10px] text-gray-400 font-bold block mb-1">Nombre de Places</label>
                 <input
                   aria-label="Nombre de places"
                   type="number"
@@ -678,50 +843,75 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
                   max="30"
                   value={newSeats}
                   onChange={(e) => setNewSeats(Number(e.target.value))}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white"
+                  className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white font-bold"
                 />
               </div>
 
               <button
                 onClick={addTable}
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold rounded-xl py-2.5 text-xs shadow-lg flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black rounded-2xl py-3 text-xs shadow-lg shadow-orange-500/25 flex items-center justify-center gap-1.5 transition-all active:scale-95"
               >
-                <Plus className="w-4 h-4" /> Poser la Table
+                <Plus className="w-4 h-4" /> Poser la Table sur le Plan
               </button>
             </div>
 
-            {/* Manual Wall Addition Shortcuts */}
-            <div className="glass-panel p-4 rounded-3xl border border-white/[0.08] space-y-2">
-              <h3 className="font-black text-xs uppercase text-gray-400 flex items-center gap-1.5">
+            {/* Quick Obstacle Presets */}
+            <div className="glass-panel p-4 rounded-3xl border border-white/[0.08] space-y-2.5">
+              <h3 className="font-black text-xs uppercase text-gray-300 flex items-center gap-1.5">
                 <Square className="w-4 h-4 text-slate-400" />
-                <span>Raccourcis Murs</span>
+                <span>Objets d&apos;Aménagement</span>
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => addWall('HORIZONTAL')}
-                  className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1"
+                  onClick={() => addPresetObstacle('WALL_H')}
+                  className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-600/80 rounded-xl py-2 px-2 text-xs font-bold flex items-center justify-center gap-1 transition-all"
                 >
                   <Square className="w-3.5 h-3.5" /> Mur H
                 </button>
                 <button
-                  onClick={() => addWall('VERTICAL')}
-                  className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1"
+                  onClick={() => addPresetObstacle('WALL_V')}
+                  className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-600/80 rounded-xl py-2 px-2 text-xs font-bold flex items-center justify-center gap-1 transition-all"
                 >
                   <Square className="w-3.5 h-3.5 rotate-90" /> Mur V
+                </button>
+                <button
+                  onClick={() => addPresetObstacle('BAR')}
+                  className="bg-amber-900/40 hover:bg-amber-900/60 text-amber-200 border border-amber-600/60 rounded-xl py-2 px-2 text-xs font-bold flex items-center justify-center gap-1 transition-all"
+                >
+                  <Wine className="w-3.5 h-3.5 text-amber-400" /> Bar / Comptoir
+                </button>
+                <button
+                  onClick={() => addPresetObstacle('DOOR')}
+                  className="bg-emerald-950/40 hover:bg-emerald-950/60 text-emerald-300 border border-emerald-500/60 rounded-xl py-2 px-2 text-xs font-bold flex items-center justify-center gap-1 transition-all"
+                >
+                  <DoorOpen className="w-3.5 h-3.5 text-emerald-400" /> Porte Entrée
                 </button>
               </div>
             </div>
 
-            {/* Selected Wall Inspector */}
+            {/* Selected Obstacle Inspector */}
             {selectedObstacle && (
-              <div className="glass-panel p-4 rounded-3xl border border-orange-500/40 space-y-3 animate-fadeIn">
+              <div className="glass-panel p-4 rounded-3xl border border-orange-500/40 space-y-3 animate-scaleUp">
                 <div className="flex items-center justify-between border-b border-orange-500/20 pb-2">
                   <h3 className="text-xs font-black text-orange-400 flex items-center gap-1">
-                    <Maximize2 className="w-3.5 h-3.5" /> Mur Sélectionné
+                    <Maximize2 className="w-3.5 h-3.5" /> {selectedObstacle.label}
                   </h3>
-                  <span className="text-[10px] text-gray-400 font-bold">
+                  <span className="text-[10px] text-gray-400 font-mono font-bold">
                     {getObstacleMeters(selectedObstacle).w}m × {getObstacleMeters(selectedObstacle).h}m
                   </span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-gray-400 font-bold block mb-1">Nom / Libellé</label>
+                  <input
+                    value={selectedObstacle.label}
+                    onChange={(e) =>
+                      setObstacles((current) =>
+                        current.map((item) => (item.id === selectedObstacle.id ? { ...item, label: e.target.value } : item))
+                      )
+                    }
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white font-bold"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -737,11 +927,11 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
                           current.map((item) => (item.id === selectedObstacle.id ? { ...item, width: Number(e.target.value) } : item))
                         )
                       }
-                      className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 text-xs text-white"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-2 py-1.5 text-xs text-white"
                     />
                   </label>
                   <label className="text-[10px] text-gray-400">
-                    Épaisseur (%)
+                    Hauteur (%)
                     <input
                       type="number"
                       min="2"
@@ -752,13 +942,9 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
                           current.map((item) => (item.id === selectedObstacle.id ? { ...item, height: Number(e.target.value) } : item))
                         )
                       }
-                      className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 text-xs text-white"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-2 py-1.5 text-xs text-white"
                     />
                   </label>
-                </div>
-
-                <div className="text-[10px] text-orange-300/80 italic">
-                  💡 Astuce: Vous pouvez aussi faire glisser les poignées orange autour du mur sur le canvas pour le redimensionner !
                 </div>
 
                 <button
@@ -766,21 +952,21 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
                     setObstacles((current) => current.filter((item) => item.id !== selectedObstacle.id));
                     setSelection(null);
                   }}
-                  className="w-full text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                  className="w-full text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Supprimer ce Mur
+                  <Trash2 className="w-3.5 h-3.5" /> Supprimer cet Objet
                 </button>
               </div>
             )}
 
             {/* Selected Table Inspector */}
             {selectedTable && (
-              <div className="glass-panel p-4 rounded-3xl border border-orange-500/40 space-y-3 animate-fadeIn">
+              <div className="glass-panel p-4 rounded-3xl border border-orange-500/40 space-y-3 animate-scaleUp">
                 <div className="flex items-center justify-between border-b border-orange-500/20 pb-2">
                   <h3 className="text-xs font-black text-orange-400">
                     Table {formatTableCode(selectedTable.tableCode, selectedTable.tableNumber)}
                   </h3>
-                  <span className="text-[10px] text-gray-400 font-bold">
+                  <span className="text-[10px] text-gray-400 font-mono font-bold">
                     Position {selectedTable.posX}% / {selectedTable.posY}%
                   </span>
                 </div>
@@ -798,12 +984,12 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
                           onClick={() => void assignWaiter(selectedTable.tableNumber, waiter.id)}
                           className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
                             isAssigned
-                              ? 'bg-purple-500/25 text-purple-300 border border-purple-500/40'
-                              : 'bg-white/[0.03] text-gray-400 hover:bg-white/[0.06] hover:text-white'
+                              ? 'bg-purple-500/25 text-purple-200 border border-purple-400/40'
+                              : 'bg-white/[0.02] text-gray-400 hover:bg-white/[0.06] hover:text-gray-200'
                           }`}
                         >
                           <span>{waiter.name}</span>
-                          {isAssigned && <Check className="w-3 h-3 text-purple-400" />}
+                          {isAssigned && <Check className="w-3.5 h-3.5 text-purple-400" />}
                         </button>
                       );
                     })}
@@ -812,22 +998,25 @@ export const FloorPlanEditor: React.FC<Props> = ({ cafeSlug }) => {
 
                 <button
                   onClick={() => {
-                    setTables((current) => current.filter((table) => table.id !== selectedTable.id));
+                    setTables((current) => current.filter((t) => t.id !== selectedTable.id));
                     setSelection(null);
                   }}
-                  className="w-full text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                  className="w-full text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Supprimer la Table
+                  <Trash2 className="w-3.5 h-3.5" /> Retirer cette Table
                 </button>
               </div>
             )}
 
-            <button
-              onClick={deletePlan}
-              className="w-full text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl py-2.5 text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all"
-            >
-              <Trash2 className="w-4 h-4" /> Supprimer ce Plan de Salle
-            </button>
+            {/* Plan Delete Option */}
+            <div className="pt-2">
+              <button
+                onClick={deletePlan}
+                className="w-full text-red-400/80 hover:text-red-300 text-[11px] font-bold py-2 transition-colors flex items-center justify-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Supprimer ce plan de salle
+              </button>
+            </div>
           </div>
         </div>
       )}

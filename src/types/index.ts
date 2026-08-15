@@ -5,6 +5,10 @@ export interface Cafe {
   name: string;
   slug: string;
   logoUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  geofenceRadiusMeters?: number;
+  lastKnownWifiIp?: string;
   createdAt?: string;
 }
 
@@ -24,6 +28,8 @@ export interface TableEntity {
   shape?: TableShape;
   seatsCount?: number;
   rotation?: number;
+  gamesEnabledOverride?: boolean | null;
+  sessionToken?: string;
 }
 
 export interface FloorPlan {
@@ -110,12 +116,18 @@ export interface OrderItem {
   notes?: string;
 }
 
+export type OrderPresenceStatus = 'VERIFIED_WIFI' | 'VERIFIED_GPS' | 'UNVERIFIED_LOCATION';
+
 export interface Order {
   id: string;
   cafeId: string;
   tableId: string;
   tableNumber: number;
   status: OrderStatus;
+  presenceStatus?: OrderPresenceStatus;
+  clientLatitude?: number;
+  clientLongitude?: number;
+  distanceMeters?: number;
   totalPrice: number;
   couponId?: string;
   discountAmount?: number;
@@ -138,11 +150,13 @@ export interface CreateOrderPayload {
   }[];
   totalPrice: number;
   couponCode?: string;
+  clientLatitude?: number;
+  clientLongitude?: number;
 }
 
 export interface RewardOption { id?: string; label: string; discountPercent: number; probabilityPercent: number; enabled: boolean; }
 export interface RewardCampaign { enabled: boolean; googleReviewUrl?: string; couponValidDays: number; participationCooldownDays: number; minimumOrderAmount: number; options: RewardOption[]; }
-export interface CouponReward { rewardLabel: string; discountPercent: number; expiresAt: string; googleReviewUrl?: string; }
+export interface CouponReward { code?: string; rewardLabel: string; discountPercent: number; expiresAt: string; googleReviewUrl?: string; }
 export interface CouponValidation { valid: boolean; code: string; rewardLabel: string; discountPercent: number; discountAmount: number; finalAmount: number; expiresAt: string; }
 
 export interface TableSession {

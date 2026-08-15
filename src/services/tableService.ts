@@ -50,4 +50,16 @@ export const tableService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(tables),
     }),
+
+  getTableStatus: async (slug: string, tableNumber: number, sessionToken?: string | null): Promise<{ hasActiveOrders: boolean; gamesAllowed: boolean; sessionValid: boolean; gamesEnabledOverride: boolean | 'AUTO' }> => {
+    const tokenQuery = sessionToken ? `?token=${encodeURIComponent(sessionToken)}` : '';
+    return fetchJson<{ hasActiveOrders: boolean; gamesAllowed: boolean; sessionValid: boolean; gamesEnabledOverride: boolean | 'AUTO' }>(`${API_BASE}/cafes/${slug}/tables/${tableNumber}/status${tokenQuery}`);
+  },
+
+  toggleTableGames: async (slug: string, tableNumber: number, enabled: boolean | null): Promise<TableEntity> =>
+    fetchJson<TableEntity>(`${API_BASE}/cafes/${slug}/tables/${tableNumber}/toggle-games`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    }),
 };
