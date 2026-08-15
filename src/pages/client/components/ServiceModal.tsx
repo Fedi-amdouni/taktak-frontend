@@ -5,6 +5,7 @@ import { api } from '../../../services/api';
 interface ServiceModalProps {
   cafeSlug: string;
   tableNumber: number;
+  hasActiveOrders?: boolean;
   isOpen: boolean;
   onClose: () => void;
   onBillRequested?: () => void;
@@ -13,11 +14,12 @@ interface ServiceModalProps {
 export const ServiceModal: React.FC<ServiceModalProps> = ({
   cafeSlug,
   tableNumber,
+  hasActiveOrders = false,
   isOpen,
   onClose,
   onBillRequested,
 }) => {
-  const [activeTab, setActiveTab] = useState<'BILL' | 'WAITER'>('BILL');
+  const [activeTab, setActiveTab] = useState<'BILL' | 'WAITER'>(hasActiveOrders ? 'BILL' : 'WAITER');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD'>('CASH');
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -26,6 +28,7 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (activeTab === 'BILL' && !hasActiveOrders) return;
     setSubmitting(true);
     try {
       if (activeTab === 'BILL') {
@@ -34,12 +37,13 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
         setSuccessMsg(`Demande d'addition (${paymentMethod === 'CASH' ? 'Espèces' : 'Carte TPE'}) transmise au serveur !`);
       } else {
         await api.sendServiceCall(cafeSlug, tableNumber, 'WAITER');
+        onBillRequested?.();
         setSuccessMsg('Appel serveur transmis ! Un serveur arrive à votre table.');
       }
       setTimeout(() => {
         setSuccessMsg(null);
         onClose();
-      }, 2000);
+      }, 1200);
     } catch (err) {
       alert("Impossible de transmettre l'appel. Veuillez réessayer.");
     } finally {
@@ -81,15 +85,19 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
             <div className="grid grid-cols-2 gap-2 p-1 bg-gray-950 rounded-2xl border border-gray-800">
               <button
                 type="button"
+                disabled={!hasActiveOrders}
                 onClick={() => setActiveTab('BILL')}
                 className={`py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center space-x-1.5 transition-all ${
-                  activeTab === 'BILL'
+                  !hasActiveOrders
+                    ? 'opacity-40 cursor-not-allowed text-gray-500'
+                    : activeTab === 'BILL'
                     ? 'bg-orange-500 text-white shadow-md'
                     : 'text-gray-400 hover:text-white'
                 }`}
+                title={!hasActiveOrders ? 'Aucune commande en cours à régler' : ''}
               >
                 <Receipt className="w-4 h-4" />
-                <span>Addition</span>
+                <span>Addition {!hasActiveOrders ? '🔒' : ''}</span>
               </button>
 
               <button
@@ -105,6 +113,12 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
                 <span>Appeler Serveur</span>
               </button>
             </div>
+
+            {!hasActiveOrders && (
+              <p className="text-[11px] text-amber-400/80 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl text-center font-medium">
+                ℹ️ L'addition s'active dès qu'une commande est passée.
+              </p>
+            )}
 
             {/* Bill options */}
             {activeTab === 'BILL' && (

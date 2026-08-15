@@ -21,7 +21,7 @@ export const App: React.FC = () => {
             <Route path="/m/:cafeSlug" element={<ClientApp />} />
 
             {/* Kitchen KDS Bar & Kitchen Screen */}
-            <Route path="/kitchen/:cafeSlug" element={<ProtectedRoute roles={['ADMIN', 'STAFF']} fallback="/staff"><KitchenDashboard /></ProtectedRoute>} />
+            <Route path="/kitchen/:cafeSlug" element={<ProtectedRoute roles={['ADMIN', 'STAFF']} fallback="/staff?redirect=/kitchen/monastir-lounge"><KitchenDashboard /></ProtectedRoute>} />
 
             {/* Staff Tablet Portal & Dashboard */}
             <Route path="/staff/:cafeSlug" element={<ProtectedRoute roles={['STAFF']} fallback="/staff"><StaffDashboard /></ProtectedRoute>} />

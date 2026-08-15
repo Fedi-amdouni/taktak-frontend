@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Eye, MessageCircle, Play, RotateCcw, Sparkles, Heart, Users, Compass, Rocket, HelpCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Eye, MessageCircle, Play, RotateCcw, Sparkles, Heart, Users, Compass, Rocket, HelpCircle, Flame } from 'lucide-react';
 import { createGameSocket, gamePlayerId, getStoredGameName, rememberGameName, type GameEvent } from '../../../services/gameSocket';
 import { RoundGameTable } from './RoundGameTable';
 
@@ -10,22 +10,23 @@ interface Props {
 }
 
 const meta = {
-  quiz: { title: 'Quiz & Débat', emoji: '🇹🇳', gradient: 'from-red-600 via-red-500 to-amber-700' },
-  truth: { title: 'Action ou Vérité', emoji: '🎭', gradient: 'from-purple-600 via-fuchsia-600 to-indigo-800' },
+  quiz: { title: 'Quiz & Débat Tounsi', emoji: '🇹🇳', gradient: 'from-red-600 via-red-500 to-amber-700' },
+  truth: { title: 'Action ou Vérité (صراحة ولا جرأة)', emoji: '🎭', gradient: 'from-purple-600 via-fuchsia-600 to-indigo-800' },
   words: { title: 'Klem fi Klem', emoji: '💬', gradient: 'from-emerald-600 via-teal-600 to-cyan-800' },
 };
 
 const THEMES = [
-  { id: 'intimate', name: 'Intime', emoji: '💖', icon: Heart, desc: 'Confidences, sentiments et secrets d’amour', color: 'from-rose-500 to-pink-700' },
-  { id: 'social', name: 'Social', emoji: '👥', icon: Users, desc: 'Deep talk, société et philosophie de vie', color: 'from-blue-500 to-indigo-700' },
-  { id: 'friends', name: 'Amis', emoji: '🎉', icon: Compass, desc: 'Anecdotes gênantes, fous rires et défis', color: 'from-amber-500 to-orange-700' },
-  { id: 'future', name: 'Avenir', emoji: '🚀', icon: Rocket, desc: 'Projets de vie, ambitions et rêves', color: 'from-violet-500 to-purple-800' },
+  { id: 'all', name: 'الكل (Mix Total)', emoji: '🔥', icon: Flame, desc: 'كل التصنيفات مخلطة: جرأة، ضحك وأسرار', color: 'from-orange-500 via-amber-500 to-red-700' },
+  { id: 'intimate', name: 'حب و أسرار', emoji: '💖', icon: Heart, desc: 'اعترافات، مشاعر وأسرار الحب', color: 'from-rose-500 to-pink-700' },
+  { id: 'social', name: 'عميق و تفكير', emoji: '👥', icon: Users, desc: 'Deep talk، المجتمع وفلسفة الحياة', color: 'from-blue-500 to-indigo-700' },
+  { id: 'friends', name: 'ضحك و فضايح', emoji: '🎉', icon: Compass, desc: 'فضايح ومواقف مضحكة وتحديات هبال', color: 'from-amber-500 to-orange-700' },
+  { id: 'future', name: 'أحلام و مشاريع', emoji: '🚀', icon: Rocket, desc: 'مشاريع المستقبل، طموحات وأهداف', color: 'from-violet-500 to-purple-800' },
 ];
 
 export const PartyGame: React.FC<Props> = ({ tableId, mode, onBack }) => {
   const socket = useRef<ReturnType<typeof createGameSocket> | null>(null);
   const [name, setName] = useState(getStoredGameName);
-  const [selectedTheme, setSelectedTheme] = useState<'intimate' | 'social' | 'friends' | 'future'>('social');
+  const [selectedTheme, setSelectedTheme] = useState<'all' | 'intimate' | 'social' | 'friends' | 'future'>('all');
   const [state, setState] = useState<GameEvent>({ type: 'party_state' });
 
   useEffect(() => {

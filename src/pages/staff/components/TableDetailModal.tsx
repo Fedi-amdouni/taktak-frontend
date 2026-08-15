@@ -2,8 +2,10 @@ import React from 'react';
 import { X, Clock, ChefHat, CheckCircle, Bell, UtensilsCrossed, Archive, MapPin, ShoppingCart } from 'lucide-react';
 import { Order, OrderStatus, ServiceCall, TableEntity } from '../../../types';
 import { formatTableCode, formatTableNumber } from '../../../utils/tableCode';
+import { api } from '../../../services/api';
 
 interface TableDetailModalProps {
+  cafeSlug: string;
   table: TableEntity | null;
   order: Order | null;
   serviceCall: ServiceCall | null;
@@ -15,6 +17,7 @@ interface TableDetailModalProps {
 }
 
 export const TableDetailModal: React.FC<TableDetailModalProps> = ({
+  cafeSlug,
   table,
   order,
   serviceCall,
@@ -91,13 +94,53 @@ export const TableDetailModal: React.FC<TableDetailModalProps> = ({
           {getStatusBadge()}
         </div>
 
-        <button
-          onClick={() => onTakeOrder(table)}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-3 text-xs font-black text-white shadow-lg shadow-orange-500/20"
-        >
-          <ShoppingCart className="h-4 w-4" />
-          {order ? 'Ajouter une commande pour cette table' : 'Prendre une commande'}
-        </button>
+        {/* Quick Order & Games Permission Controls */}
+        <div className="space-y-2">
+          <button
+            onClick={() => onTakeOrder(table)}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-3 text-xs font-black text-white shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            {order ? 'Ajouter des articles' : 'Prendre une commande manuelle'}
+          </button>
+
+          {/* Toggle Games Override Button */}
+          <div className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm">🎮</span>
+              <div>
+                <span className="text-xs font-bold text-white block">Jeux de Table (Chkobba, Rami...)</span>
+                <span className="text-[10px] text-gray-400">
+                  {table.gamesEnabledOverride === true
+                    ? '🟢 Forcé Actif (Ami / VIP)'
+                    : table.gamesEnabledOverride === false
+                    ? '🔴 Forcé Inactif (Bloqué)'
+                    : order
+                    ? '✨ Débloqué (Commande en cours)'
+                    : '🔒 Verrouillé (En attente de commande)'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={async () => {
+                  const nextVal = table.gamesEnabledOverride === true ? false : true;
+                  await api.toggleTableGames(cafeSlug, table.tableNumber, nextVal);
+                  table.gamesEnabledOverride = nextVal;
+                }}
+                className={`text-[11px] font-black px-3 py-1.5 rounded-xl border transition-all active:scale-95 ${
+                  table.gamesEnabledOverride === true
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+                    : 'bg-white/[0.04] border-white/10 text-gray-300 hover:text-white hover:bg-white/[0.08]'
+                }`}
+              >
+                {table.gamesEnabledOverride === true ? 'Activé 🟢' : 'Débloquer 🔓'}
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Active Call Alert */}
         {serviceCall && serviceCall.active && (
@@ -193,8 +236,19 @@ export const TableDetailModal: React.FC<TableDetailModalProps> = ({
               )}
 
               {order.status === 'PAID' && (
-                <div className="w-full bg-violet-500/10 text-violet-300 font-bold py-3 px-4 rounded-2xl border border-violet-500/20 text-center text-xs">
-                  Payée · archivage automatique en cours
+                <div className="space-y-2">
+                  <div className="w-full bg-violet-500/10 text-violet-300 font-bold py-2 px-3 rounded-2xl border border-violet-500/20 text-center text-xs">
+                    Payée · archivage automatique (15s)
+                  </div>
+                  <button
+                    onClick={() => {
+                      onUpdateOrderStatus(order.id, 'ARCHIVED');
+                      onClose();
+                    }}
+                    className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black py-2.5 px-4 rounded-2xl text-xs flex items-center justify-center space-x-2 transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+                  >
+                    <span>📦 Archiver & Libérer la Table Immédiatement</span>
+                  </button>
                 </div>
               )}
             </div>

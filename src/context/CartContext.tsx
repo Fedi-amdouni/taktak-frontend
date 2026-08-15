@@ -52,7 +52,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    const itemUnitPrice = product.price + extraCost;
+    const basePrice = (product.promoPrice != null && product.promoPrice > 0 && product.promoPrice < product.price)
+      ? product.promoPrice
+      : product.price;
+    const itemUnitPrice = basePrice + extraCost;
     const cartItemId = `${product.id}-${JSON.stringify(selectedOptions)}-${finalNotes}`;
 
     setCart((prevCart) => {
