@@ -23,7 +23,7 @@ import {
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { api } from '../../../services/api';
-import { Cafe } from '../../../types';
+import { Cafe, TableEntity } from '../../../types';
 import coffeeBg from '../../../assets/cafe-qr-bg-coffee.jpg';
 import foodBg from '../../../assets/cafe-qr-bg-food.jpg';
 import loungeChocolate from '../../../assets/lounge-chocolate-premium.png';
@@ -146,28 +146,43 @@ export const QrPdfGenerator: React.FC<QrPdfGeneratorProps> = ({ cafeSlug, cafeNa
   const discountBadgeText = '';
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [progressText, setProgressText] = useState<string>('');
-
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const [tableEntities, setTableEntities] = useState<TableEntity[]>([]);
+
   useEffect(() => {
-    const fetchCafe = async () => {
+    const fetchCafeAndTables = async () => {
       try {
-        const data = await api.getCafeBySlug(cafeSlug);
+        const [data, tablesData] = await Promise.all([
+          api.getCafeBySlug(cafeSlug),
+          api.getTablesByCafe(cafeSlug).catch(() => []),
+        ]);
         if (data) {
           setCafe(data);
           if (!wifiSsid) setWifiSsid(`${data.name} Guest`);
+        }
+        if (tablesData && tablesData.length > 0) {
+          setTableEntities(tablesData);
+          setTableCount(tablesData.length);
         }
       } catch {
         // Ignore fallback
       }
     };
-    fetchCafe();
+    fetchCafeAndTables();
   }, [cafeSlug]);
 
   const effectiveCafeName = cafe?.name || initialCafeName || 'Monastir Lounge';
   const cafeLogo = cafe?.logoUrl || coffeeBg;
 
   const tables = Array.from({ length: tableCount }, (_, i) => i + 1);
+
+  const getTableQrUrl = (tableNum: number) => {
+    const foundTable = tableEntities.find((t) => Number(t.tableNumber) === Number(tableNum));
+    const tokenParam = foundTable?.sessionToken ? `?token=${foundTable.sessionToken}` : '';
+    const tableLabel = tableNum < 10 ? `0${tableNum}` : `${tableNum}`;
+    return `${window.location.origin}/m/${cafeSlug}/t/${tableLabel}${tokenParam}`;
+  };
 
   // Group tables into pages according to layout
   const itemsPerPage = layoutFormat === 'stands-a4' ? 2 : layoutFormat === 'stickers-a4' ? 6 : 1;
@@ -401,7 +416,7 @@ export const QrPdfGenerator: React.FC<QrPdfGeneratorProps> = ({ cafeSlug, cafeNa
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             {tables.map((tableNum) => {
-              const qrUrl = `${window.location.origin}/m/${cafeSlug}/t/${tableNum < 10 ? `0${tableNum}` : tableNum}`;
+              const qrUrl = getTableQrUrl(tableNum);
               return (
                 <div
                   key={tableNum}
@@ -455,7 +470,7 @@ export const QrPdfGenerator: React.FC<QrPdfGeneratorProps> = ({ cafeSlug, cafeNa
               {layoutFormat === 'stands-a4' && (
                 <div className="grid h-full grid-cols-2 gap-[4mm]">
                   {pageTables.map((tableNum) => {
-                    const qrUrl = `${window.location.origin}/m/${cafeSlug}/t/${tableNum < 10 ? `0${tableNum}` : tableNum}`;
+                    const qrUrl = getTableQrUrl(tableNum);
                     return (
                       <div
                         key={tableNum}
@@ -493,7 +508,7 @@ export const QrPdfGenerator: React.FC<QrPdfGeneratorProps> = ({ cafeSlug, cafeNa
               {false && layoutFormat === 'stands-a4' && (
                 <div className="grid grid-cols-2 gap-5 h-full">
                   {pageTables.map((tableNum) => {
-                    const qrUrl = `${window.location.origin}/m/${cafeSlug}/t/${tableNum < 10 ? `0${tableNum}` : tableNum}`;
+                    const qrUrl = getTableQrUrl(tableNum);
                     return (
                       <div
                         key={tableNum}
@@ -621,7 +636,7 @@ export const QrPdfGenerator: React.FC<QrPdfGeneratorProps> = ({ cafeSlug, cafeNa
               {layoutFormat === 'stickers-a4' && (
                 <div className="grid grid-cols-2 grid-rows-3 gap-4 h-full">
                   {pageTables.map((tableNum) => {
-                    const qrUrl = `${window.location.origin}/m/${cafeSlug}/t/${tableNum < 10 ? `0${tableNum}` : tableNum}`;
+                    const qrUrl = getTableQrUrl(tableNum);
                     return (
                       <div
                         key={tableNum}
@@ -678,7 +693,7 @@ export const QrPdfGenerator: React.FC<QrPdfGeneratorProps> = ({ cafeSlug, cafeNa
               {layoutFormat === 'poster-single' && (
                 <div className="h-full flex items-center justify-center">
                   {pageTables.map((tableNum) => {
-                    const qrUrl = `${window.location.origin}/m/${cafeSlug}/t/${tableNum < 10 ? `0${tableNum}` : tableNum}`;
+                    const qrUrl = getTableQrUrl(tableNum);
                     return (
                       <div
                         key={tableNum}

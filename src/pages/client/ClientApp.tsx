@@ -48,23 +48,34 @@ export const ClientApp: React.FC = () => {
     hasActiveOrders: false,
     gamesAllowed: false,
   });
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
   const gameTableId = `${cafeSlug}-${tableNumber}`;
 
   useEffect(() => {
     // Initialize session and trigger table change detection
     initializeSession(cafeSlug, tableNumber);
 
+    const searchParams = new URLSearchParams(window.location.search);
+    const urlToken = searchParams.get('token');
+
     // Fetch Cafe & Menu & Table Status
     const loadData = async () => {
       try {
+        setIsLoadingSession(true);
         const [cafeData, menuData, statusData] = await Promise.all([
           api.getCafeBySlug(cafeSlug),
           api.getMenu(cafeSlug),
-          api.getTableStatus(cafeSlug, tableNumber).catch(() => ({ hasActiveOrders: Boolean(activeOrderId), gamesAllowed: Boolean(activeOrderId) })),
+          api.getTableStatus(cafeSlug, tableNumber, urlToken).catch(() => ({ hasActiveOrders: Boolean(activeOrderId), gamesAllowed: Boolean(activeOrderId), sessionValid: false })),
         ]);
         setCafe(cafeData);
         setCategories(menuData.categories);
         setProducts(menuData.products);
+
+        // Le serveur valide le jeton sans jamais révéler sa valeur au client.
+        // En cas de jeton absent, invalide ou d'erreur réseau, l'accès reste fermé.
+        setSessionExpired(!statusData?.sessionValid);
+
         if (statusData) {
           setTableStatus({
             hasActiveOrders: statusData.hasActiveOrders || Boolean(activeOrderId),
@@ -73,6 +84,8 @@ export const ClientApp: React.FC = () => {
         }
       } catch (e) {
         console.error('Erreur chargement données client', e);
+      } finally {
+        setIsLoadingSession(false);
       }
     };
 
@@ -87,6 +100,50 @@ export const ClientApp: React.FC = () => {
       setUpsellProduct(product);
     }
   };
+
+  if (isLoadingSession) {
+    return (
+      <div className="min-h-screen bg-[#08090e] text-white flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-gray-400 font-bold">Connexion sécurisée à votre table...</p>
+      </div>
+    );
+  }
+
+  if (sessionExpired) {
+    return (
+      <div className="min-h-screen bg-[#08090e] text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-sm w-full bg-gradient-to-b from-[#141824] to-[#0c0e17] border border-amber-500/30 rounded-3xl p-8 shadow-2xl space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl" />
+
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/20 text-3xl">
+            🔒
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-xl font-black text-white tracking-tight">Session Expirée</h1>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Pour des raisons de sécurité et pour garantir que vous êtes bien présent à la <strong className="text-amber-400">Table {tableNumber}</strong>, l'accès direct par lien manuel est désactivé.
+            </p>
+          </div>
+
+          <div className="p-4 bg-black/40 border border-white/5 rounded-2xl space-y-1">
+            <p className="text-[11px] font-bold text-amber-300">
+              📸 Veuillez scanner le QR Code présent sur votre table
+            </p>
+            <p className="text-[10px] text-gray-400">
+              Chaque table dispose d'un QR code sécurisé avec jeton dynamique mis à jour à chaque client.
+            </p>
+          </div>
+
+          <div className="text-[10px] text-gray-500 font-mono">
+            {cafe?.name || 'TakTak Lounge'} • Table {tableNumber}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#08090e] text-gray-100 flex flex-col selection:bg-orange-500 selection:text-white pb-16">

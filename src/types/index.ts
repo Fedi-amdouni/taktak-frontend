@@ -29,6 +29,7 @@ export interface TableEntity {
   seatsCount?: number;
   rotation?: number;
   gamesEnabledOverride?: boolean | null;
+  sessionToken?: string;
 }
 
 export interface FloorPlan {
