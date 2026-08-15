@@ -7,6 +7,7 @@ interface ServiceModalProps {
   tableNumber: number;
   isOpen: boolean;
   onClose: () => void;
+  onBillRequested?: () => void;
 }
 
 export const ServiceModal: React.FC<ServiceModalProps> = ({
@@ -14,6 +15,7 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
   tableNumber,
   isOpen,
   onClose,
+  onBillRequested,
 }) => {
   const [activeTab, setActiveTab] = useState<'BILL' | 'WAITER'>('BILL');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD'>('CASH');
@@ -28,15 +30,17 @@ export const ServiceModal: React.FC<ServiceModalProps> = ({
     try {
       if (activeTab === 'BILL') {
         await api.sendServiceCall(cafeSlug, tableNumber, 'BILL', paymentMethod);
+        onBillRequested?.();
         setSuccessMsg(`Demande d'addition (${paymentMethod === 'CASH' ? 'Espèces' : 'Carte TPE'}) transmise au serveur !`);
       } else {
         await api.sendServiceCall(cafeSlug, tableNumber, 'WAITER');
+        onBillRequested?.();
         setSuccessMsg('Appel serveur transmis ! Un serveur arrive à votre table.');
       }
       setTimeout(() => {
         setSuccessMsg(null);
         onClose();
-      }, 2000);
+      }, 1200);
     } catch (err) {
       alert("Impossible de transmettre l'appel. Veuillez réessayer.");
     } finally {

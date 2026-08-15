@@ -123,6 +123,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onUpdateStatus }) =
       {/* Total & Quick Actions */}
       <div className="pt-2 flex items-center justify-between">
         <div>
+          {!!order.discountAmount && order.discountAmount > 0 && <span className="mb-1 block text-[10px] font-bold text-emerald-400">Coupon automatique : −{order.discountAmount.toFixed(3)} TND</span>}
           <span className="text-[9px] text-gray-600 block uppercase tracking-widest font-bold">Total</span>
           <span className="text-sm font-extrabold">
             <span className="gradient-text">{order.totalPrice ? order.totalPrice.toFixed(3) : '0.000'}</span>
@@ -166,9 +167,18 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onUpdateStatus }) =
           )}
 
           {order.status === 'PAID' && (
-            <span className="text-[10px] font-bold text-violet-300 bg-violet-500/10 px-2.5 py-1.5 rounded-xl border border-violet-500/20">
-              Archivage automatique…
-            </span>
+            <div className="flex items-center space-x-1.5">
+              <span className="text-[10px] font-bold text-violet-300 bg-violet-500/10 px-2 py-1.5 rounded-xl border border-violet-500/20">
+                Payée (15s)
+              </span>
+              <button
+                onClick={() => onUpdateStatus(order.id, 'ARCHIVED')}
+                className="bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border border-orange-500/30 font-black text-[10px] px-2 py-1.5 rounded-xl transition-all active:scale-95"
+                title="Libérer la table immédiatement"
+              >
+                📦 Archiver
+              </button>
+            </div>
           )}
         </div>
       </div>

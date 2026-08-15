@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { X, Trash2, Plus, Minus, Send, MapPin, ShoppingBag, Sparkles, Dices } from 'lucide-react';
+import { X, Trash2, Plus, Minus, Send, MapPin, ShoppingBag, Sparkles, Dices, TicketCheck, ArrowRight } from 'lucide-react';
+import { CouponValidation } from '../../../types';
 import { useCart } from '../../../context/CartContext';
 import { useTableSession } from '../../../context/TableSessionContext';
 import { api } from '../../../services/api';
+import { formatPrice } from '../../../utils/formatPrice';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -20,6 +22,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const { cart, updateQuantity, removeFromCart, clearCart, totalPrice } = useCart();
   const { currentCafeSlug, currentTableNumber, setActiveOrderId } = useTableSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [couponCode, setCouponCode] = useState(() => new URLSearchParams(window.location.search).get('coupon') || '');
+  const [coupon, setCoupon] = useState<CouponValidation | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -32,6 +37,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   if (!isOpen) return null;
 
+  const validateCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    try {
+      const res = await api.validateCoupon(currentCafeSlug, couponCode.trim(), totalPrice);
+      setCoupon(res);
+    } catch {
+      setCoupon(null);
+      alert('Coupon invalide, expiré, déjà utilisé ou montant minimum non atteint.');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
   const handleSubmitOrder = async () => {
     if (cart.length === 0 || isSubmitting) return;
 
@@ -41,6 +60,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         cafeSlug: currentCafeSlug,
         tableNumber: currentTableNumber,
         totalPrice,
+        couponCode: coupon?.code,
         items: cart.map((item) => ({
           productId: item.productId,
           productName: item.productName,
@@ -55,109 +75,136 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       clearCart();
       onOrderCreated(order.id);
       onClose();
-    } catch (err) {
+    } catch {
       alert('Erreur lors de la validation de la commande. Veuillez réessayer.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const finalAmount = coupon?.finalAmount ?? totalPrice;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-overlay animate-fadeIn" onClick={onClose}>
-      <div className="w-full max-w-md bg-[#0d0f18] border border-white/[0.06] rounded-t-[28px] sm:rounded-[28px] max-h-[88vh] flex flex-col shadow-2xl animate-slideUp relative" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md bg-[#0a0d16] border border-white/[0.08] rounded-t-[32px] sm:rounded-[32px] max-h-[90vh] flex flex-col shadow-2xl animate-slideUp relative" onClick={(e) => e.stopPropagation()}>
         {/* Mobile Drag Handle */}
-        <div className="w-12 h-1.5 bg-white/30 rounded-full mx-auto my-2 sm:hidden cursor-pointer" onClick={onClose} />
+        <div className="w-12 h-1.5 bg-white/30 rounded-full mx-auto my-2.5 sm:hidden cursor-pointer" onClick={onClose} />
+
         {/* Header */}
-        <div className="px-5 py-4 border-b border-white/[0.04] flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-orange-500/[0.08] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-2xl bg-orange-500/[0.12] border border-orange-500/25 flex items-center justify-center">
               <ShoppingBag className="w-4.5 h-4.5 text-orange-400" />
             </div>
             <div>
-              <h2 className="text-[15px] font-extrabold text-white tracking-tight">Mon Panier</h2>
-              <p className="text-[10px] text-gray-500 font-medium">{cart.length} article{cart.length !== 1 ? 's' : ''}</p>
+              <h2 className="text-[15px] font-black text-white tracking-tight">Mon Panier</h2>
+              <p className="text-[10px] text-gray-400 font-semibold">{cart.length} article{cart.length !== 1 ? 's' : ''}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 bg-white/[0.04] text-gray-500 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all duration-300"
+            className="p-2 bg-white/[0.04] text-gray-400 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all duration-300"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
 
         {/* Table Confirmation Bar */}
-        <div className="bg-gradient-to-r from-orange-500/[0.06] to-amber-500/[0.04] border-b border-orange-500/10 px-5 py-2.5 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-[11px] text-orange-300/80 font-medium">
-            <MapPin className="w-3.5 h-3.5 text-orange-400/60" />
-            <span>Commande attribuée à :</span>
+        <div className="bg-gradient-to-r from-orange-500/[0.08] via-amber-500/[0.05] to-transparent border-b border-orange-500/15 px-5 py-2.5 flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-xs text-orange-300/90 font-bold">
+            <MapPin className="w-3.5 h-3.5 text-orange-400" />
+            <span>Service en salle :</span>
           </div>
-          <span className="bg-gradient-to-r from-orange-500 to-amber-500 text-white font-extrabold text-[11px] px-3 py-1 rounded-full shadow-sm shadow-orange-500/20">
+          <span className="bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black text-[11px] px-3 py-1 rounded-full shadow-sm shadow-orange-500/20">
             Table {currentTableNumber < 10 ? `0${currentTableNumber}` : currentTableNumber}
           </span>
         </div>
 
-        <button onClick={onOpenRoulette} className="mx-4 mt-3 flex items-center justify-center gap-2 rounded-2xl border border-amber-400/20 bg-amber-400/10 py-2.5 text-xs font-extrabold text-amber-200 transition hover:bg-amber-400/20">
-          <Dices className="w-4 h-4" /> Chkoun ykhalles ?
-        </button>
+        {/* Chkoun Ykhalles Interactive Roulette Callout */}
+        <div className="px-4 pt-3">
+          <button
+            onClick={onOpenRoulette}
+            className="w-full flex items-center justify-between gap-2.5 rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent p-3 text-xs font-black text-amber-200 transition-all hover:bg-amber-400/20 hover:border-amber-400/50 shadow-md group"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-8 h-8 rounded-xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-base flex-shrink-0 group-hover:rotate-12 transition-transform">
+                🎯
+              </span>
+              <div className="text-left">
+                <span className="block text-xs font-black text-white">Chkoun ykhalles ?</span>
+                <span className="text-[10px] text-amber-300/80 font-medium">Tirez au sort qui paie la note</span>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-amber-300 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
 
         {/* Items List */}
         <div className="px-4 py-3 flex-1 overflow-y-auto space-y-2.5 no-scrollbar">
           {cart.length === 0 ? (
-            <div className="text-center py-14">
-              <ShoppingBag className="w-14 h-14 text-gray-800 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-gray-500">Votre panier est vide</p>
-              <p className="text-xs text-gray-600 mt-1">Ajoutez des produits depuis le menu</p>
+            <div className="text-center py-14 space-y-2">
+              <ShoppingBag className="w-14 h-14 text-gray-700 mx-auto" />
+              <p className="text-sm font-black text-gray-400">Votre panier est vide</p>
+              <p className="text-xs text-gray-600">Sélectionnez vos cafés, boissons ou desserts préférés !</p>
             </div>
           ) : (
             cart.map((item, idx) => (
               <div
                 key={item.id}
-                className="glass-panel p-3.5 rounded-2xl flex items-center space-x-3 animate-fadeIn"
-                style={{ animationDelay: `${idx * 50}ms` }}
+                className="glass-panel p-3 rounded-2xl flex items-center space-x-3 animate-fadeIn"
+                style={{ animationDelay: `${idx * 40}ms` }}
               >
                 {/* Image */}
-                {item.imageUrl && (
+                {item.imageUrl ? (
                   <img
                     src={item.imageUrl}
                     alt={item.productName}
-                    className="w-14 h-14 rounded-xl object-cover flex-shrink-0 ring-1 ring-white/[0.06]"
+                    className="w-14 h-14 rounded-xl object-cover flex-shrink-0 ring-1 ring-white/[0.08]"
                   />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl bg-gray-800 flex items-center justify-center text-orange-400 text-lg">
+                    ☕
+                  </div>
                 )}
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-xs font-bold text-gray-100 truncate">{item.productName}</h4>
-                  {item.notes && (
-                    <p className="text-[10px] text-amber-400/60 truncate mt-0.5 italic">{item.notes}</p>
+                  <h4 className="text-xs font-black text-gray-100 truncate">{item.productName}</h4>
+                  {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
+                    <p className="text-[10px] text-gray-400 truncate mt-0.5">
+                      {Object.values(item.selectedOptions).join(', ')}
+                    </p>
                   )}
-                  <p className="text-xs font-extrabold mt-1">
-                    <span className="gradient-text">{(item.unitPrice * item.quantity).toFixed(3)}</span>
-                    <span className="text-[10px] text-gray-600 ml-1">TND</span>
+                  {item.notes && (
+                    <p className="text-[10px] text-amber-400/80 truncate mt-0.5 italic">{item.notes}</p>
+                  )}
+                  <p className="text-xs font-black mt-1">
+                    <span className="gradient-text">{formatPrice(item.unitPrice * item.quantity)}</span>
+                    <span className="text-[10px] text-gray-500 ml-1 font-semibold">TND</span>
                   </p>
                 </div>
 
-                {/* Quantity Controls */}
-                <div className="flex items-center space-x-1.5 bg-white/[0.03] p-1 rounded-xl border border-white/[0.06]">
+                {/* Quantity Stepper */}
+                <div className="flex items-center space-x-1.5 bg-white/[0.04] p-1 rounded-xl border border-white/[0.08]">
                   <button
                     onClick={() => updateQuantity(item.id, -1)}
                     className="w-6 h-6 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] flex items-center justify-center text-white transition-all active:scale-90"
                   >
                     <Minus className="w-3 h-3" />
                   </button>
-                  <span className="text-[11px] font-extrabold text-white w-4 text-center">{item.quantity}</span>
+                  <span className="text-[11px] font-black text-white w-4 text-center">{item.quantity}</span>
                   <button
                     onClick={() => updateQuantity(item.id, 1)}
-                    className="w-6 h-6 rounded-lg bg-orange-500 hover:bg-orange-600 flex items-center justify-center text-white transition-all active:scale-90 shadow-sm shadow-orange-500/20"
+                    className="w-6 h-6 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 flex items-center justify-center text-white transition-all active:scale-90 shadow-sm shadow-orange-500/20"
                   >
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
 
-                {/* Delete */}
+                {/* Delete button */}
                 <button
                   onClick={() => removeFromCart(item.id)}
-                  className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-300"
+                  className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -166,25 +213,56 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           )}
         </div>
 
-        {/* Footer Submit */}
+        {/* Footer Checkout Section */}
         {cart.length > 0 && (
-          <div className="p-5 border-t border-white/[0.04] space-y-3.5" style={{ background: 'linear-gradient(180deg, rgba(13, 15, 24, 0) 0%, rgba(13, 15, 24, 1) 30%)' }}>
+          <div className="p-5 border-t border-white/[0.06] space-y-3.5" style={{ background: 'linear-gradient(180deg, rgba(10, 13, 22, 0) 0%, rgba(10, 13, 22, 1) 30%)' }}>
+            {/* Coupon input */}
+            <div className="flex gap-2">
+              <input
+                value={couponCode}
+                onChange={(e) => {
+                  setCouponCode(e.target.value.toUpperCase());
+                  setCoupon(null);
+                }}
+                placeholder="Code coupon (Ex: PROMO10)"
+                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs uppercase tracking-wider text-white placeholder:text-gray-500 outline-none focus:border-amber-400"
+              />
+              <button
+                type="button"
+                onClick={validateCoupon}
+                disabled={couponLoading}
+                className="rounded-xl border border-amber-400/30 bg-amber-400/15 hover:bg-amber-400/25 px-3.5 text-xs font-black text-amber-300 transition-all flex items-center gap-1 active:scale-95"
+              >
+                <TicketCheck className="h-4 w-4" />
+                {couponLoading ? '…' : 'Appliquer'}
+              </button>
+            </div>
+
+            {coupon && (
+              <div className="flex justify-between items-center rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-2 text-xs font-bold text-emerald-300">
+                <span>{coupon.rewardLabel}</span>
+                <span>-{formatPrice(coupon.discountAmount)} TND</span>
+              </div>
+            )}
+
+            {/* Total Row */}
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Total</span>
-              <span className="text-lg font-extrabold">
-                <span className="gradient-text">{totalPrice.toFixed(3)}</span>
-                <span className="text-xs text-gray-500 ml-1.5">TND</span>
+              <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Total Commande</span>
+              <span className="text-lg font-black">
+                <span className="gradient-text">{formatPrice(finalAmount)}</span>
+                <span className="text-xs text-gray-500 ml-1.5 font-semibold">TND</span>
               </span>
             </div>
 
+            {/* Order Confirmation CTA */}
             <button
               disabled={isSubmitting}
               onClick={handleSubmitOrder}
-              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-orange-500/20 flex items-center justify-center space-x-2.5 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-orange-500/25 flex items-center justify-center space-x-2.5 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-4 h-4" />
-              <span className="text-sm">{isSubmitting ? 'Envoi en cours...' : `Envoyer en cuisine`}</span>
-              <Sparkles className="w-3.5 h-3.5 opacity-60" />
+              <span className="text-sm">{isSubmitting ? 'Transmission en cuisine…' : 'Envoyer la commande en cuisine'}</span>
+              <Sparkles className="w-3.5 h-3.5 opacity-70" />
             </button>
           </div>
         )}

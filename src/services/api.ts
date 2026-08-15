@@ -7,6 +7,7 @@ import { serviceCallService } from './serviceCallService';
 import { waiterService } from './waiterService';
 import { ambianceService } from './ambianceService';
 import { analyticsService, OwnerAnalytics } from './analyticsService';
+import { rewardService } from './rewardService';
 
 export { authSession, subscribeLocalOrders, notifyLocalOrderCreated };
 export type { AuthSession, OwnerAnalytics };
@@ -21,6 +22,7 @@ export const api = {
   ...waiterService,
   ...ambianceService,
   ...analyticsService,
+  ...rewardService,
 };
 
 export default api;

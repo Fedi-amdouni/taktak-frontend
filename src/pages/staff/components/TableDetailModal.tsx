@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Clock, ChefHat, CheckCircle, Bell, UtensilsCrossed, Archive, MapPin } from 'lucide-react';
+import { X, Clock, ChefHat, CheckCircle, Bell, UtensilsCrossed, Archive, MapPin, ShoppingCart } from 'lucide-react';
 import { Order, OrderStatus, ServiceCall, TableEntity } from '../../../types';
 import { formatTableCode, formatTableNumber } from '../../../utils/tableCode';
 
@@ -11,6 +11,7 @@ interface TableDetailModalProps {
   onClose: () => void;
   onUpdateOrderStatus: (orderId: string, status: OrderStatus) => void;
   onDismissServiceCall: (callId: string) => void;
+  onTakeOrder: (table: TableEntity) => void;
 }
 
 export const TableDetailModal: React.FC<TableDetailModalProps> = ({
@@ -21,6 +22,7 @@ export const TableDetailModal: React.FC<TableDetailModalProps> = ({
   onClose,
   onUpdateOrderStatus,
   onDismissServiceCall,
+  onTakeOrder,
 }) => {
   if (!isOpen || !table) return null;
 
@@ -89,6 +91,14 @@ export const TableDetailModal: React.FC<TableDetailModalProps> = ({
           {getStatusBadge()}
         </div>
 
+        <button
+          onClick={() => onTakeOrder(table)}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-3 text-xs font-black text-white shadow-lg shadow-orange-500/20"
+        >
+          <ShoppingCart className="h-4 w-4" />
+          {order ? 'Ajouter une commande pour cette table' : 'Prendre une commande'}
+        </button>
+
         {/* Active Call Alert */}
         {serviceCall && serviceCall.active && (
           <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-between space-x-2">
@@ -152,6 +162,7 @@ export const TableDetailModal: React.FC<TableDetailModalProps> = ({
               <span className="text-gray-400 font-medium">Total Commande:</span>
               <span className="text-base font-black text-white">{order.totalPrice ? order.totalPrice.toFixed(3) : '0.000'} TND</span>
             </div>
+            {!!order.discountAmount && order.discountAmount > 0 && <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300"><span>Coupon appliqué automatiquement</span><span>−{order.discountAmount.toFixed(3)} TND</span></div>}
 
             {/* Action Buttons */}
             <div className="space-y-2 pt-2 border-t border-gray-800">
@@ -182,8 +193,19 @@ export const TableDetailModal: React.FC<TableDetailModalProps> = ({
               )}
 
               {order.status === 'PAID' && (
-                <div className="w-full bg-violet-500/10 text-violet-300 font-bold py-3 px-4 rounded-2xl border border-violet-500/20 text-center text-xs">
-                  Payée · archivage automatique en cours
+                <div className="space-y-2">
+                  <div className="w-full bg-violet-500/10 text-violet-300 font-bold py-2 px-3 rounded-2xl border border-violet-500/20 text-center text-xs">
+                    Payée · archivage automatique (15s)
+                  </div>
+                  <button
+                    onClick={() => {
+                      onUpdateOrderStatus(order.id, 'ARCHIVED');
+                      onClose();
+                    }}
+                    className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black py-2.5 px-4 rounded-2xl text-xs flex items-center justify-center space-x-2 transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+                  >
+                    <span>📦 Archiver & Libérer la Table Immédiatement</span>
+                  </button>
                 </div>
               )}
             </div>

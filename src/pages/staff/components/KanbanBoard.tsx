@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChefHat, Volume2, VolumeX, RefreshCw, Sparkles, Zap, Bell, CheckCircle, Sun, Activity, MapPin, Filter, Lock, Calendar, Archive, Flame, UtensilsCrossed, Layout, List } from 'lucide-react';
 import { Order, OrderStatus, ServiceCall, Waiter, TableEntity, FloorPlan, FloorObstacle } from '../../../types';
 import { api } from '../../../services/api';
@@ -9,6 +10,7 @@ import { StockQuickToggleModal } from './StockQuickToggleModal';
 import { WaiterPinLoginModal } from './WaiterPinLoginModal';
 import { TableZoneSelectorModal } from './TableZoneSelectorModal';
 import { InteractiveFloorPlan } from './InteractiveFloorPlan';
+import { WaiterOrderModal } from './WaiterOrderModal';
 import { formatTableNumber } from '../../../utils/tableCode';
 
 interface KanbanBoardProps {
@@ -16,6 +18,7 @@ interface KanbanBoardProps {
 }
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [serviceCalls, setServiceCalls] = useState<ServiceCall[]>([]);
   const [tables, setTables] = useState<TableEntity[]>([]);
@@ -37,6 +40,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(!activeWaiter);
   const [isZoneModalOpen, setIsZoneModalOpen] = useState<boolean>(false);
   const [isMyZoneOnly, setIsMyZoneOnly] = useState<boolean>(true);
+  const [orderTable, setOrderTable] = useState<TableEntity | null>(null);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
@@ -349,29 +353,37 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
           </div>
         </div>
 
-        {/* View Switcher: Plan 2D vs Kanban */}
-        <div className="flex items-center bg-white/[0.04] p-1 rounded-2xl border border-white/[0.08]">
+        {/* View Switcher: Plan 2D vs Kanban vs Cuisine KDS */}
+        <div className="flex items-center bg-white/[0.04] p-1 rounded-2xl border border-white/[0.08] gap-1">
           <button
             onClick={() => setViewMode('MAP')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
               viewMode === 'MAP'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
             <Layout className="w-4 h-4" />
-            <span>🗺️ Plan 2D Salle</span>
+            <span>🗺️ Plan 2D</span>
           </button>
           <button
             onClick={() => setViewMode('KANBAN')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
               viewMode === 'KANBAN'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
             <List className="w-4 h-4" />
-            <span>📜 Historique & Kanban</span>
+            <span>📜 Commandes</span>
+          </button>
+          <button
+            onClick={() => navigate(`/kitchen/${cafeSlug}`)}
+            className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-black text-amber-300 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all active:scale-95"
+            title="Basculer vers l'écran KDS Cuisine"
+          >
+            <ChefHat className="w-4 h-4 text-amber-400" />
+            <span>👨‍🍳 Cuisine</span>
           </button>
         </div>
 
@@ -506,6 +518,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
           isMyZoneOnly={isMyZoneOnly}
           onUpdateOrderStatus={handleUpdateStatus}
           onDismissServiceCall={handleDismissServiceCall}
+          onTakeOrder={setOrderTable}
         />
       ) : (
         <div className="space-y-6">
@@ -617,6 +630,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
           )}
         </div>
       )}
+
+      <WaiterOrderModal
+        cafeSlug={cafeSlug}
+        table={orderTable}
+        onClose={() => setOrderTable(null)}
+        onOrderCreated={loadData}
+      />
 
       {/* Modals */}
       <StockQuickToggleModal

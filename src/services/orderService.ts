@@ -31,6 +31,10 @@ export const orderService = {
     return fetchJson<Order[]>(`${API_BASE}/cafes/${slug}/orders`);
   },
 
+  getOrder: async (orderId: string): Promise<Order> => {
+    return fetchJson<Order>(`${API_BASE}/orders/${orderId}`);
+  },
+
   updateOrderStatus: async (orderId: string, status: OrderStatus): Promise<Order> => {
     return fetchJson<Order>(`${API_BASE}/orders/${orderId}/status`, {
       method: 'PATCH',

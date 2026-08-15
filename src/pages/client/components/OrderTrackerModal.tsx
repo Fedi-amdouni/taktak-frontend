@@ -23,8 +23,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
   const fetchLatestOrder = async () => {
     if (!activeOrderId) return;
     try {
-      const orders = await api.getOrdersByCafe(currentCafeSlug);
-      const found = orders.find((o) => String(o.id).toLowerCase() === String(activeOrderId).toLowerCase());
+      const found = await api.getOrder(activeOrderId);
       if (found) {
         if (found.status === 'ARCHIVED') {
           setIsArchived(true);
