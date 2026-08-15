@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChefHat, Volume2, VolumeX, RefreshCw, Sparkles, Zap, Bell, CheckCircle, Sun, Activity, MapPin, Filter, Lock, Calendar, Archive, Flame, UtensilsCrossed, Layout, List } from 'lucide-react';
 import { Order, OrderStatus, ServiceCall, Waiter, TableEntity, FloorPlan, FloorObstacle } from '../../../types';
 import { api } from '../../../services/api';
+import { authSession } from '../../../services/apiClient';
 import { stompService } from '../../../services/stompService';
 import { OrderCard } from './OrderCard';
 import { TableShiftAlert } from './TableShiftAlert';
@@ -33,11 +34,23 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
 
   // Waiter & Zoning state
   const [activeWaiter, setActiveWaiter] = useState<Waiter | null>(() => {
+    const session = authSession.get();
     const saved = localStorage.getItem(`activeWaiter_${cafeSlug}`);
-    return saved ? JSON.parse(saved) : null;
+    if (session?.token && saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return null;
+      }
+    }
+    return null;
   });
   const [allWaiters, setAllWaiters] = useState<Waiter[]>([]);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(!activeWaiter);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(() => {
+    const session = authSession.get();
+    const saved = localStorage.getItem(`activeWaiter_${cafeSlug}`);
+    return !session?.token || !saved;
+  });
   const [isZoneModalOpen, setIsZoneModalOpen] = useState<boolean>(false);
   const [isMyZoneOnly, setIsMyZoneOnly] = useState<boolean>(true);
   const [orderTable, setOrderTable] = useState<TableEntity | null>(null);
@@ -109,7 +122,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
   };
 
   const loadData = async () => {
+    const session = authSession.get();
+    if (!session?.token) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
     try {
+      api.sendStaffHeartbeat(cafeSlug); // Auto-apprentissage invisible de l'IP du WiFi du café
+
       const [orderList, callList, tableList, planList, waiterList] = await Promise.all([
         api.getOrdersByCafe(cafeSlug),
         api.getServiceCalls(cafeSlug),
@@ -130,7 +151,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
       // Keep active logged-in waiter's table assignments in sync with Admin's assignments!
       if (activeWaiter) {
         const updatedSelf = validWaiters.find((w) => w.id === activeWaiter.id);
-        if (updatedSelf) {
+        if (updatedSelf && JSON.stringify(updatedSelf.assignedTables) !== JSON.stringify(activeWaiter.assignedTables)) {
           setActiveWaiter(updatedSelf);
           localStorage.setItem(`activeWaiter_${cafeSlug}`, JSON.stringify(updatedSelf));
         }
@@ -145,6 +166,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
     localStorage.setItem(`activeWaiter_${cafeSlug}`, JSON.stringify(waiter));
     setIsLoginModalOpen(false);
 
+    // Recharger immédiatement les commandes et le plan avec le token fraîchement obtenu
+    loadData();
+
     if (!waiter.assignedTables || waiter.assignedTables.length === 0) {
       setIsZoneModalOpen(true);
     }
@@ -153,12 +177,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
   const handleWaiterLogout = () => {
     setActiveWaiter(null);
     localStorage.removeItem(`activeWaiter_${cafeSlug}`);
+    authSession.clear();
     setIsLoginModalOpen(true);
   };
 
   const handleZoneUpdated = (updatedWaiter: Waiter) => {
     setActiveWaiter(updatedWaiter);
     localStorage.setItem(`activeWaiter_${cafeSlug}`, JSON.stringify(updatedWaiter));
+    loadData();
   };
 
   useEffect(() => {
@@ -508,6 +534,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ cafeSlug }) => {
       {/* Main View Area */}
       {viewMode === 'MAP' ? (
         <InteractiveFloorPlan
+          cafeSlug={cafeSlug}
           tables={tables}
           floorPlans={floorPlans}
           obstacles={floorObstacles}

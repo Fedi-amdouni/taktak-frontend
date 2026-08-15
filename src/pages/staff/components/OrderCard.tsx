@@ -75,10 +75,28 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onUpdateStatus }) =
     >
       {/* Top Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
           <span className={`bg-gradient-to-r ${style.badge} text-white font-black text-xs px-3 py-1.5 rounded-xl shadow-lg`}>
             Table {formatTableNumber(order.tableNumber)}
           </span>
+
+          {/* Badges de présence client */}
+          {order.presenceStatus === 'VERIFIED_WIFI' && (
+            <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1" title="Client connecté au WiFi du café">
+              <span>📶 WiFi Café</span>
+            </span>
+          )}
+          {order.presenceStatus === 'VERIFIED_GPS' && (
+            <span className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1" title={`Vérifié sur place par GPS (${order.distanceMeters ?? '<100'}m)`}>
+              <span>📍 Sur place</span>
+            </span>
+          )}
+          {order.presenceStatus === 'UNVERIFIED_LOCATION' && (
+            <span className="bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1" title="Position GPS non fournie ou distante (4G)">
+              <span>⚠️ 4G / Non vérifié</span>
+            </span>
+          )}
+
           {order.tableChangedAlert && (
             <span className="bg-red-500/90 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center space-x-1 animate-bounce">
               <AlertTriangle className="w-2.5 h-2.5" />

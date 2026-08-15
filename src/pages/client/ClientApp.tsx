@@ -44,23 +44,40 @@ export const ClientApp: React.FC = () => {
   const [isRouletteOpen, setIsRouletteOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<EntertainmentGame | null>(null);
+  const [tableStatus, setTableStatus] = useState<{ hasActiveOrders: boolean; gamesAllowed: boolean }>({
+    hasActiveOrders: false,
+    gamesAllowed: false,
+  });
   const gameTableId = `${cafeSlug}-${tableNumber}`;
 
   useEffect(() => {
     // Initialize session and trigger table change detection
     initializeSession(cafeSlug, tableNumber);
 
-    // Fetch Cafe & Menu
+    // Fetch Cafe & Menu & Table Status
     const loadData = async () => {
-      const cafeData = await api.getCafeBySlug(cafeSlug);
-      const menuData = await api.getMenu(cafeSlug);
-      setCafe(cafeData);
-      setCategories(menuData.categories);
-      setProducts(menuData.products);
+      try {
+        const [cafeData, menuData, statusData] = await Promise.all([
+          api.getCafeBySlug(cafeSlug),
+          api.getMenu(cafeSlug),
+          api.getTableStatus(cafeSlug, tableNumber).catch(() => ({ hasActiveOrders: Boolean(activeOrderId), gamesAllowed: Boolean(activeOrderId) })),
+        ]);
+        setCafe(cafeData);
+        setCategories(menuData.categories);
+        setProducts(menuData.products);
+        if (statusData) {
+          setTableStatus({
+            hasActiveOrders: statusData.hasActiveOrders || Boolean(activeOrderId),
+            gamesAllowed: statusData.gamesAllowed || Boolean(activeOrderId),
+          });
+        }
+      } catch (e) {
+        console.error('Erreur chargement données client', e);
+      }
     };
 
     loadData();
-  }, [cafeSlug, tableNumber]);
+  }, [cafeSlug, tableNumber, activeOrderId]);
 
   const handleAddToCart = (product: Product, selectedOptions: Record<string, string>, quantity: number, notes?: string) => {
     addToCart(product, selectedOptions, quantity, notes);
@@ -121,6 +138,29 @@ export const ClientApp: React.FC = () => {
           />
         ) : activeTab === 'ambiance' ? (
           <AmbianceView cafeSlug={cafeSlug} />
+        ) : !tableStatus.gamesAllowed ? (
+          <div className="max-w-md mx-auto px-4 py-12 text-center space-y-5 animate-fadeIn">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 flex items-center justify-center mx-auto shadow-2xl shadow-amber-500/10 animate-bounce">
+              <Gamepad2 className="w-10 h-10 text-amber-400" />
+            </div>
+            <div className="space-y-2">
+              <span className="bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
+                🔒 Jeux Réservés aux Clients
+              </span>
+              <h2 className="text-lg font-black text-white">Débloquez les Jeux à Table</h2>
+              <p className="text-xs text-gray-400 max-w-xs mx-auto leading-relaxed">
+                Passez votre première commande pour activer instantanément la <strong className="text-white">Chkobba, Rami, Uno, Ludo et Quiz</strong> avec vos amis !
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('menu')}
+              className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs px-6 py-3.5 rounded-2xl shadow-xl shadow-orange-500/25 flex items-center gap-2 mx-auto active:scale-95 transition-all"
+            >
+              <UtensilsCrossed className="w-4 h-4" />
+              <span>Commander pour Débloquer 🔓</span>
+            </button>
+          </div>
         ) : selectedGame === 'connect-four' ? (
           <ConnectFourGame tableId={gameTableId} onBack={() => setSelectedGame(null)} />
         ) : selectedGame === 'uno' ? (
@@ -236,6 +276,7 @@ export const ClientApp: React.FC = () => {
       <ServiceModal
         cafeSlug={cafeSlug}
         tableNumber={tableNumber}
+        hasActiveOrders={tableStatus.hasActiveOrders}
         isOpen={isServiceModalOpen}
         onClose={() => setIsServiceModalOpen(false)}
         onBillRequested={async () => {

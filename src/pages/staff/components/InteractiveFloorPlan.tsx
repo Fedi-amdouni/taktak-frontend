@@ -6,6 +6,7 @@ import { Bell, Lock, Layers, CircleAlert, Clock, Utensils, CheckCircle2, User, W
 import { TableDetailModal } from './TableDetailModal';
 
 interface InteractiveFloorPlanProps {
+  cafeSlug?: string;
   tables: TableEntity[];
   floorPlans: FloorPlan[];
   obstacles: FloorObstacle[];
@@ -20,6 +21,7 @@ interface InteractiveFloorPlanProps {
 }
 
 export const InteractiveFloorPlan: React.FC<InteractiveFloorPlanProps> = ({
+  cafeSlug = 'monastir-lounge',
   tables,
   floorPlans,
   obstacles,
@@ -463,6 +465,7 @@ export const InteractiveFloorPlan: React.FC<InteractiveFloorPlanProps> = ({
 
       {/* 1-Tap Table Detail Drawer Modal */}
       <TableDetailModal
+        cafeSlug={cafeSlug}
         table={selectedTable}
         order={selectedOrder}
         serviceCall={selectedCall}

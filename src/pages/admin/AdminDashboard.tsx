@@ -10,14 +10,17 @@ import { WaiterAnalyticsView } from './components/WaiterAnalyticsView';
 import { AmbianceManagement } from './components/AmbianceManagement';
 import { FloorPlanEditor } from './components/FloorPlanEditor';
 import { RewardCampaignManager } from './components/RewardCampaignManager';
+import { CafeLocationSettings } from './components/CafeLocationSettings';
+import { MapPin } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const { cafeSlug = 'monastir-lounge' } = useParams<{ cafeSlug: string }>();
-  const [activeTab, setActiveTab] = useState<'analytics' | 'floorplan' | 'waiter-analytics' | 'ambiance' | 'menu' | 'waiters' | 'rewards' | 'qrcodes'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'floorplan' | 'location' | 'waiter-analytics' | 'ambiance' | 'menu' | 'waiters' | 'rewards' | 'qrcodes'>('analytics');
 
   const tabs = [
     { key: 'analytics', label: 'Revenus & Analytics', icon: TrendingUp },
     { key: 'floorplan', label: 'Plan de Salle 2D', icon: Layout },
+    { key: 'location', label: 'Localisation & GPS', icon: MapPin },
     { key: 'waiter-analytics', label: 'Performance Équipe Salle', icon: Zap },
     { key: 'ambiance', label: 'Matchs & TV en Direct', icon: Tv },
     { key: 'menu', label: 'Menu & Produits', icon: Coffee },
@@ -102,6 +105,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="relative z-10">
         {activeTab === 'analytics' && <AnalyticsDashboard cafeSlug={cafeSlug} />}
         {activeTab === 'floorplan' && <FloorPlanEditor cafeSlug={cafeSlug} />}
+        {activeTab === 'location' && <CafeLocationSettings cafeSlug={cafeSlug} />}
         {activeTab === 'waiter-analytics' && <WaiterAnalyticsView cafeSlug={cafeSlug} />}
         {activeTab === 'ambiance' && <AmbianceManagement cafeSlug={cafeSlug} />}
         {activeTab === 'menu' && <MenuManager cafeSlug={cafeSlug} />}

@@ -55,12 +55,43 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     if (cart.length === 0 || isSubmitting) return;
 
     setIsSubmitting(true);
+
+    let clientLat: number | undefined = undefined;
+    let clientLng: number | undefined = undefined;
+
+    // 1. Vérifier si le client est déjà connecté au WiFi officiel du café
+    let isAlreadyOnWifi = false;
+    try {
+      isAlreadyOnWifi = await api.checkCafeWifi(currentCafeSlug);
+    } catch {
+      isAlreadyOnWifi = false;
+    }
+
+    // 2. Si le client N'EST PAS sur le WiFi (ex: 4G), effectuer une vérification GPS ponctuelle non-bloquante
+    if (!isAlreadyOnWifi && navigator.geolocation) {
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            timeout: 2500,
+            enableHighAccuracy: true,
+            maximumAge: 60000,
+          });
+        });
+        clientLat = position.coords.latitude;
+        clientLng = position.coords.longitude;
+      } catch {
+        // En cas de refus ou timeout, la commande passe quand même (non-bloquant)
+      }
+    }
+
     try {
       const order = await api.createOrder({
         cafeSlug: currentCafeSlug,
         tableNumber: currentTableNumber,
         totalPrice,
         couponCode: coupon?.code,
+        clientLatitude: clientLat,
+        clientLongitude: clientLng,
         items: cart.map((item) => ({
           productId: item.productId,
           productName: item.productName,
@@ -76,7 +107,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       onOrderCreated(order.id);
       onClose();
     } catch {
-      alert('Erreur lors de la validation de la commande. Veuillez réessayer.');
+      alert('Erreur lors de la transmission de la commande. Veuillez réessayer.');
     } finally {
       setIsSubmitting(false);
     }
