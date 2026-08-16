@@ -2,6 +2,17 @@ import { FloorObstacle, FloorPlan, TableEntity } from '../types';
 import { API_BASE, fetchJson } from './apiClient';
 
 export const tableService = {
+  getTableStatus: async (
+    slug: string,
+    tableNumber: number,
+    sessionToken?: string | null,
+  ): Promise<{ hasActiveOrders: boolean; gamesAllowed: boolean; sessionValid: boolean; gamesEnabledOverride: boolean | 'AUTO' }> => {
+    const tokenQuery = sessionToken ? `?token=${encodeURIComponent(sessionToken)}` : '';
+    return fetchJson<{ hasActiveOrders: boolean; gamesAllowed: boolean; sessionValid: boolean; gamesEnabledOverride: boolean | 'AUTO' }>(
+      `${API_BASE}/cafes/${slug}/tables/${tableNumber}/status${tokenQuery}`,
+    );
+  },
+
   getTablesByCafe: async (slug: string): Promise<TableEntity[]> => {
     return fetchJson<TableEntity[]>(`${API_BASE}/cafes/${slug}/tables`);
   },
