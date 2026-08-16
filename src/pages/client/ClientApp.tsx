@@ -46,23 +46,64 @@ export const ClientApp: React.FC = () => {
   const [isRouletteOpen, setIsRouletteOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<EntertainmentGame | null>(null);
+  const [tableStatus, setTableStatus] = useState<{ hasActiveOrders: boolean; gamesAllowed: boolean }>({
+    hasActiveOrders: false,
+    gamesAllowed: false,
+  });
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
   const gameTableId = `${cafeSlug}-${tableNumber}`;
 
   useEffect(() => {
     // Initialize session and trigger table change detection
     initializeSession(cafeSlug, tableNumber);
 
-    // Fetch Cafe & Menu
+    const urlToken = new URLSearchParams(window.location.search).get('token');
+    const storageKey = `taktak_table_token_${cafeSlug}_${tableNumber}`;
+    const effectiveToken = urlToken || sessionStorage.getItem(storageKey);
+
+    // Fetch Cafe, Menu, and the server-authoritative table status.
     const loadData = async () => {
-      const cafeData = await api.getCafeBySlug(cafeSlug);
-      const menuData = await api.getMenu(cafeSlug);
-      setCafe(cafeData);
-      setCategories(menuData.categories);
-      setProducts(menuData.products);
+      try {
+        setIsLoadingSession(true);
+        const [cafeData, menuData, statusData] = await Promise.all([
+          api.getCafeBySlug(cafeSlug),
+          api.getMenu(cafeSlug),
+          api.getTableStatus(cafeSlug, tableNumber, effectiveToken).catch(() => ({
+            hasActiveOrders: Boolean(activeOrderId),
+            gamesAllowed: Boolean(activeOrderId),
+            sessionValid: false,
+            gamesEnabledOverride: 'AUTO' as const,
+          })),
+        ]);
+
+        setCafe(cafeData);
+        setCategories(menuData.categories);
+        setProducts(menuData.products);
+
+        if (statusData.sessionValid && effectiveToken) {
+          sessionStorage.setItem(storageKey, effectiveToken);
+          setSessionExpired(false);
+        } else {
+          sessionStorage.removeItem(storageKey);
+          setSessionExpired(true);
+        }
+
+        setTableStatus({
+          hasActiveOrders: statusData.hasActiveOrders || Boolean(activeOrderId),
+          gamesAllowed: statusData.gamesAllowed || Boolean(activeOrderId),
+        });
+      } catch (error) {
+        console.error('Erreur chargement des données client', error);
+        sessionStorage.removeItem(storageKey);
+        setSessionExpired(true);
+      } finally {
+        setIsLoadingSession(false);
+      }
     };
 
     loadData();
-  }, [cafeSlug, tableNumber]);
+  }, [cafeSlug, tableNumber, activeOrderId]);
 
   const handleAddToCart = (product: Product, selectedOptions: Record<string, string>, quantity: number, notes?: string) => {
     addToCart(product, selectedOptions, quantity, notes);
@@ -72,6 +113,34 @@ export const ClientApp: React.FC = () => {
       setUpsellProduct(product);
     }
   };
+
+  if (isLoadingSession) {
+    return (
+      <div className="min-h-screen bg-[#08090e] text-white flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-gray-400 font-bold">Connexion sécurisée à votre table...</p>
+      </div>
+    );
+  }
+
+  if (sessionExpired) {
+    return (
+      <div className="min-h-screen bg-[#08090e] text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-sm w-full bg-gradient-to-b from-[#141824] to-[#0c0e17] border border-amber-500/30 rounded-3xl p-8 shadow-2xl space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl" />
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/20 text-3xl">🔒</div>
+          <div className="space-y-2">
+            <h1 className="text-xl font-black text-white tracking-tight">Session expirée</h1>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Pour des raisons de sécurité, veuillez scanner le QR Code présent sur votre table.
+            </p>
+          </div>
+          <div className="text-[10px] text-gray-500 font-mono">{cafe?.name || 'TakTak Lounge'} • Table {tableNumber}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col selection:bg-orange-500 selection:text-white pb-16">
@@ -98,6 +167,21 @@ export const ClientApp: React.FC = () => {
           />
         ) : activeTab === 'ambiance' ? (
           <AmbianceView cafeSlug={cafeSlug} />
+        ) : !tableStatus.gamesAllowed ? (
+          <div className="max-w-md mx-auto px-4 py-12 text-center space-y-5 animate-fadeIn">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 flex items-center justify-center mx-auto shadow-2xl shadow-amber-500/10 animate-bounce">
+              <Gamepad2 className="w-10 h-10 text-amber-400" />
+            </div>
+            <div className="space-y-2">
+              <span className="bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">Jeux réservés aux clients</span>
+              <h2 className="text-lg font-black text-white">Débloquez les jeux à table</h2>
+              <p className="text-xs text-gray-400 max-w-xs mx-auto leading-relaxed">Passez votre première commande pour jouer avec vos amis.</p>
+            </div>
+            <button type="button" onClick={() => setActiveTab('menu')} className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white font-extrabold text-xs px-6 py-3.5 rounded-2xl shadow-xl shadow-orange-500/25 flex items-center gap-2 mx-auto active:scale-95 transition-all">
+              <UtensilsCrossed className="w-4 h-4" />
+              <span>Commander pour débloquer</span>
+            </button>
+          </div>
         ) : (
           selectedGame === 'connect-four' ? <ConnectFourGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'uno' ? <UnoGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'ludo' ? <LudoGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'chkobba' ? <ChkobbaGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'rami' ? <RamiGame tableId={gameTableId} onBack={() => setSelectedGame(null)} /> : selectedGame === 'quiz' || selectedGame === 'truth' ? <PartyGame tableId={gameTableId} mode={selectedGame} onBack={() => setSelectedGame(null)} /> : <EntertainmentHub onSelect={setSelectedGame} onRoulette={() => setIsRouletteOpen(true)} />
         )}
