@@ -47,6 +47,14 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ cafeSlug
     ...(data?.hourlyDistribution?.map((h) => h.ordersCount) || [1]),
     1
   );
+  const peakHour = data?.hourlyDistribution?.reduce((best, current) =>
+    current.ordersCount > best.ordersCount ? current : best,
+    { hour: '—', ordersCount: 0, revenue: 0 }
+  );
+  const statusBreakdown = data?.statusBreakdown || {};
+  const activeOrders = (statusBreakdown.RECEIVED || 0) + (statusBreakdown.PREPARING || 0) + (statusBreakdown.READY || 0);
+  const completedOrders = (statusBreakdown.SERVED || 0) + (statusBreakdown.PAID || 0) + (statusBreakdown.ARCHIVED || 0);
+  const completionRate = data?.totalOrders ? Math.round((completedOrders / data.totalOrders) * 100) : 0;
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -79,6 +87,30 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ cafeSlug
             <RefreshCw className={`w-3.5 h-3.5 text-orange-400 ${loading ? 'animate-spin' : ''}`} />
             <span>Actualiser</span>
           </button>
+        </div>
+      </div>
+
+      {/* Operational pulse: the few signals an owner needs at a glance */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+          <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">En cours maintenant</p>
+          <p className="mt-2 text-xl font-black text-white">{activeOrders}</p>
+          <p className="mt-1 text-[10px] text-gray-400">commandes à suivre</p>
+        </div>
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+          <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">Heure de pointe</p>
+          <p className="mt-2 text-xl font-black text-white">{peakHour?.ordersCount ? peakHour.hour : '—'}</p>
+          <p className="mt-1 text-[10px] text-gray-400">{peakHour?.ordersCount || 0} commandes</p>
+        </div>
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+          <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">Taux de service</p>
+          <p className="mt-2 text-xl font-black text-emerald-400">{completionRate}%</p>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, completionRate)}%` }} /></div>
+        </div>
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+          <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">À surveiller</p>
+          <p className={`mt-2 text-xl font-black ${(data?.cancellationRate || 0) > 8 ? 'text-red-400' : 'text-white'}`}>{data?.cancellationRate ?? 0}%</p>
+          <p className="mt-1 text-[10px] text-gray-400">taux d’annulation</p>
         </div>
       </div>
 

@@ -9,6 +9,7 @@ import { KitchenDashboard } from './pages/kitchen/KitchenDashboard';
 import { StaffPortal } from './pages/staff/StaffPortal';
 import { AdminPortal } from './pages/admin/AdminPortal';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
+import { TvMenu } from './pages/tv/TvMenu';
 
 export const App: React.FC = () => {
   return (
@@ -19,6 +20,9 @@ export const App: React.FC = () => {
             {/* Client Mobile App */}
             <Route path="/m/:cafeSlug/t/:tableId" element={<ClientApp />} />
             <Route path="/m/:cafeSlug" element={<ClientApp />} />
+
+            {/* Public Smart TV menu display */}
+            <Route path="/tv/:cafeSlug" element={<TvMenu />} />
 
             {/* Kitchen KDS Bar & Kitchen Screen */}
             <Route path="/kitchen/:cafeSlug" element={<ProtectedRoute roles={['ADMIN', 'STAFF']} fallback="/staff?redirect=/kitchen/monastir-lounge"><KitchenDashboard /></ProtectedRoute>} />

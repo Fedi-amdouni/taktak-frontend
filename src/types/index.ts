@@ -1,4 +1,5 @@
 export type OrderStatus = 'RECEIVED' | 'PREPARING' | 'READY' | 'PICKED_UP' | 'SERVED' | 'PAID' | 'ARCHIVED' | 'CANCELLED';
+export type TvMenuStyle = 'ELEGANT' | 'ESPRESSO' | 'URBAN';
 
 export interface Cafe {
   id: string;
@@ -10,6 +11,23 @@ export interface Cafe {
   geofenceRadiusMeters?: number;
   lastKnownWifiIp?: string;
   createdAt?: string;
+  orderingEnabled?: boolean;
+  waiterCallsEnabled?: boolean;
+  gamesEnabled?: boolean;
+  ambianceVotingEnabled?: boolean;
+  rewardsEnabled?: boolean;
+  tvMenuEnabled?: boolean;
+  tvMenuStyle?: TvMenuStyle;
+}
+
+export interface CafeFeatureSettings {
+  orderingEnabled: boolean;
+  waiterCallsEnabled: boolean;
+  gamesEnabled: boolean;
+  ambianceVotingEnabled: boolean;
+  rewardsEnabled: boolean;
+  tvMenuEnabled: boolean;
+  tvMenuStyle: TvMenuStyle;
 }
 
 export type TableShape = 'SQUARE' | 'ROUND' | 'RECTANGLE' | 'SOFA';
@@ -123,11 +141,15 @@ export interface Order {
   cafeId: string;
   tableId: string;
   tableNumber: number;
+  participantId?: string;
+  clientOrderId?: string;
   status: OrderStatus;
   presenceStatus?: OrderPresenceStatus;
   clientLatitude?: number;
   clientLongitude?: number;
   distanceMeters?: number;
+  estimatedWaitMinutes?: number;
+  estimatedReadyAt?: string;
   totalPrice: number;
   couponId?: string;
   discountAmount?: number;
@@ -140,6 +162,8 @@ export interface Order {
 export interface CreateOrderPayload {
   cafeSlug: string;
   tableNumber: number;
+  participantId?: string;
+  clientOrderId?: string;
   items: {
     productId: string;
     productName: string;

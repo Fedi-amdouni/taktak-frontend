@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Coffee, QrCode, TrendingUp, Users, ExternalLink, Sparkles, Zap, Tv, Layout, ArrowLeft, Gift } from 'lucide-react';
+import { Coffee, QrCode, TrendingUp, Users, ExternalLink, Sparkles, Zap, Tv, Layout, ArrowLeft, Gift, Settings2, Monitor } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MenuManager } from './components/MenuManager';
 import { QrPdfGenerator } from './components/QrPdfGenerator';
@@ -11,14 +11,16 @@ import { AmbianceManagement } from './components/AmbianceManagement';
 import { FloorPlanEditor } from './components/FloorPlanEditor';
 import { RewardCampaignManager } from './components/RewardCampaignManager';
 import { CafeLocationSettings } from './components/CafeLocationSettings';
+import { FeatureSettings } from './components/FeatureSettings';
 import { MapPin } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const { cafeSlug = 'monastir-lounge' } = useParams<{ cafeSlug: string }>();
-  const [activeTab, setActiveTab] = useState<'analytics' | 'floorplan' | 'location' | 'waiter-analytics' | 'ambiance' | 'menu' | 'waiters' | 'rewards' | 'qrcodes'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'features' | 'floorplan' | 'location' | 'waiter-analytics' | 'ambiance' | 'menu' | 'waiters' | 'rewards' | 'qrcodes'>('analytics');
 
   const tabs = [
     { key: 'analytics', label: 'Revenus & Analytics', icon: TrendingUp },
+    { key: 'features', label: 'Fonctionnalités', icon: Settings2 },
     { key: 'floorplan', label: 'Plan de Salle 2D', icon: Layout },
     { key: 'location', label: 'Localisation & GPS', icon: MapPin },
     { key: 'waiter-analytics', label: 'Performance Équipe Salle', icon: Zap },
@@ -55,6 +57,15 @@ export const AdminDashboard: React.FC = () => {
             <ArrowLeft className="w-3 h-3" />
             <span>Mes cafés</span>
           </Link>
+          <a
+            href={`/tv/${cafeSlug}`}
+            target="_blank"
+            rel="noreferrer"
+            className="bg-white/[0.04] hover:bg-white/[0.08] text-gray-400 hover:text-sky-300 px-3.5 py-2.5 rounded-xl border border-white/[0.06] flex items-center space-x-1.5 transition-all duration-300"
+          >
+            <Monitor className="w-3 h-3" />
+            <span>Menu TV</span>
+          </a>
           <a
             href={`/m/${cafeSlug}/t/05`}
             target="_blank"
@@ -104,6 +115,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Content */}
       <div className="relative z-10">
         {activeTab === 'analytics' && <AnalyticsDashboard cafeSlug={cafeSlug} />}
+        {activeTab === 'features' && <FeatureSettings cafeSlug={cafeSlug} />}
         {activeTab === 'floorplan' && <FloorPlanEditor cafeSlug={cafeSlug} />}
         {activeTab === 'location' && <CafeLocationSettings cafeSlug={cafeSlug} />}
         {activeTab === 'waiter-analytics' && <WaiterAnalyticsView cafeSlug={cafeSlug} />}

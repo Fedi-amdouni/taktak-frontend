@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { X, Trash2, Plus, Minus, Send, MapPin, ShoppingBag, Sparkles, Dices, TicketCheck, ArrowRight } from 'lucide-react';
-import { CouponValidation } from '../../../types';
+import { X, Trash2, Plus, Minus, Send, MapPin, ShoppingBag, Sparkles, TicketCheck, ArrowRight, LoaderCircle, RefreshCw, ShieldCheck } from 'lucide-react';
+import { CouponValidation, CreateOrderPayload } from '../../../types';
 import { useCart } from '../../../context/CartContext';
 import { useTableSession } from '../../../context/TableSessionContext';
 import { api } from '../../../services/api';
 import { formatPrice } from '../../../utils/formatPrice';
+import { clearPendingOrderId, getOrCreateParticipantId, getOrCreatePendingOrderId } from '../../../utils/clientIdentity';
 
 interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onOrderCreated: (orderId: string) => void;
   onOpenRoulette: () => void;
+  gamesEnabled?: boolean;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -18,10 +20,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onClose,
   onOrderCreated,
   onOpenRoulette,
+  gamesEnabled = true,
 }) => {
   const { cart, updateQuantity, removeFromCart, clearCart, totalPrice } = useCart();
   const { currentCafeSlug, currentTableNumber, setActiveOrderId } = useTableSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionStage, setSubmissionStage] = useState<'location' | 'transmission'>('transmission');
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const preparedOrderRef = React.useRef<CreateOrderPayload | null>(null);
   const [couponCode, setCouponCode] = useState(() => new URLSearchParams(window.location.search).get('coupon') || '');
   const [coupon, setCoupon] = useState<CouponValidation | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
@@ -29,11 +35,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   React.useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !isSubmitting && !submissionError) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, isSubmitting, submissionError, onClose]);
 
   if (!isOpen) return null;
 
@@ -51,10 +57,34 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   };
 
+  const transmitOrder = async (payload: CreateOrderPayload) => {
+    setSubmissionStage('transmission');
+    setIsSubmitting(true);
+    setSubmissionError(null);
+
+    try {
+      const order = await api.createOrder(payload);
+
+      clearPendingOrderId(payload.cafeSlug, payload.tableNumber);
+      preparedOrderRef.current = null;
+      setActiveOrderId(order.id);
+      clearCart();
+      onOrderCreated(order.id);
+      onClose();
+    } catch {
+      setSubmissionError(
+        'Nous ne pouvons pas encore confirmer la réception. Votre panier est conservé : réessayez sans risque de créer un doublon.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmitOrder = async () => {
-    if (cart.length === 0 || isSubmitting) return;
+    if (cart.length === 0 || isSubmitting || submissionError) return;
 
     setIsSubmitting(true);
+    setSubmissionStage('location');
 
     let clientLat: number | undefined = undefined;
     let clientLng: number | undefined = undefined;
@@ -67,12 +97,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       isAlreadyOnWifi = false;
     }
 
-    // 2. Si le client N'EST PAS sur le WiFi (ex: 4G), effectuer une vérification GPS ponctuelle non-bloquante
+    // 2. Hors du WiFi officiel, attendre le choix explicite du client dans
+    // la popup du navigateur. Sans timeout, la commande ne part ni avant
+    // « Autoriser », ni avant « Refuser ».
     if (!isAlreadyOnWifi && navigator.geolocation) {
       try {
         const position = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
-            timeout: 2500,
             enableHighAccuracy: true,
             maximumAge: 60000,
           });
@@ -80,14 +111,29 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         clientLat = position.coords.latitude;
         clientLng = position.coords.longitude;
       } catch {
-        // En cas de refus ou timeout, la commande passe quand même (non-bloquant)
+        // Le refus est un choix valide : la commande passe alors comme présence non vérifiée.
       }
     }
 
-    try {
-      const order = await api.createOrder({
+    const cartSignature = JSON.stringify({
+      cafeSlug: currentCafeSlug,
+      tableNumber: currentTableNumber,
+      totalPrice,
+      couponCode: coupon?.code,
+      items: cart.map(({ productId, quantity, unitPrice, selectedOptions, notes }) => ({
+        productId,
+        quantity,
+        unitPrice,
+        selectedOptions,
+        notes,
+      })),
+    });
+
+    const payload: CreateOrderPayload = {
         cafeSlug: currentCafeSlug,
         tableNumber: currentTableNumber,
+        participantId: getOrCreateParticipantId(),
+        clientOrderId: getOrCreatePendingOrderId(currentCafeSlug, currentTableNumber, cartSignature),
         totalPrice,
         couponCode: coupon?.code,
         clientLatitude: clientLat,
@@ -100,23 +146,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           selectedOptions: item.selectedOptions,
           notes: item.notes,
         })),
-      });
+      };
 
-      setActiveOrderId(order.id);
-      clearCart();
-      onOrderCreated(order.id);
-      onClose();
-    } catch {
-      alert('Erreur lors de la transmission de la commande. Veuillez réessayer.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    preparedOrderRef.current = payload;
+    await transmitOrder(payload);
+  };
+
+  const retryOrder = async () => {
+    if (isSubmitting || !preparedOrderRef.current) return;
+    await transmitOrder(preparedOrderRef.current);
   };
 
   const finalAmount = coupon?.finalAmount ?? totalPrice;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-overlay animate-fadeIn" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-overlay animate-fadeIn" onClick={() => {
+      if (!isSubmitting && !submissionError) onClose();
+    }}>
       <div className="w-full max-w-md bg-[#0a0d16] border border-white/[0.08] rounded-t-[32px] sm:rounded-[32px] max-h-[90vh] flex flex-col shadow-2xl animate-slideUp relative" onClick={(e) => e.stopPropagation()}>
         {/* Mobile Drag Handle */}
         <div className="w-12 h-1.5 bg-white/30 rounded-full mx-auto my-2.5 sm:hidden cursor-pointer" onClick={onClose} />
@@ -134,6 +180,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
           <button
             onClick={onClose}
+            disabled={isSubmitting || Boolean(submissionError)}
+            aria-label="Fermer le panier"
             className="p-2 bg-white/[0.04] text-gray-400 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all duration-300"
           >
             <X className="w-4.5 h-4.5" />
@@ -151,8 +199,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </span>
         </div>
 
-        {/* Chkoun Ykhalles Interactive Roulette Callout */}
-        <div className="px-4 pt-3">
+        {gamesEnabled && <div className="px-4 pt-3">
           <button
             onClick={onOpenRoulette}
             className="w-full flex items-center justify-between gap-2.5 rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent p-3 text-xs font-black text-amber-200 transition-all hover:bg-amber-400/20 hover:border-amber-400/50 shadow-md group"
@@ -168,7 +215,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             </div>
             <ArrowRight className="w-4 h-4 text-amber-300 group-hover:translate-x-1 transition-transform" />
           </button>
-        </div>
+        </div>}
 
         {/* Items List */}
         <div className="px-4 py-3 flex-1 overflow-y-auto space-y-2.5 no-scrollbar">
@@ -298,6 +345,50 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
         )}
       </div>
+
+      {(isSubmitting || submissionError) && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#05070d]/80 p-6 backdrop-blur-md animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="order-transmission-title"
+          aria-describedby="order-transmission-description"
+        >
+          <div className="w-full max-w-sm rounded-[28px] border border-white/10 bg-[#0a0d16]/95 p-7 text-center shadow-2xl shadow-black/60">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-orange-400/25 bg-orange-500/10">
+              {isSubmitting ? (
+                <LoaderCircle className="h-8 w-8 animate-spin text-orange-400" />
+              ) : (
+                <ShieldCheck className="h-8 w-8 text-amber-300" />
+              )}
+            </div>
+            <h2 id="order-transmission-title" className="text-lg font-black text-white">
+              {isSubmitting
+                ? submissionStage === 'location'
+                  ? 'Vérification de présence…'
+                  : 'Confirmation en cours…'
+                : 'Confirmation interrompue'}
+            </h2>
+            <p id="order-transmission-description" className="mt-3 text-sm leading-6 text-gray-300" aria-live="polite">
+              {isSubmitting
+                ? submissionStage === 'location'
+                  ? 'Veuillez autoriser ou refuser la localisation dans la fenêtre du navigateur. La commande attend votre choix.'
+                  : 'Gardez cette page ouverte. Nous attendons la confirmation de la cuisine.'
+                : submissionError}
+            </p>
+            {!isSubmitting && submissionError && (
+              <button
+                type="button"
+                onClick={retryOrder}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition-transform active:scale-[0.98]"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Vérifier et réessayer
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

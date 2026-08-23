@@ -94,6 +94,16 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
 
   const currentStatus: OrderStatus = order?.status || 'RECEIVED';
   const canCancel = currentStatus === 'RECEIVED';
+  const remainingMinutes = order?.estimatedReadyAt
+    ? Math.max(1, Math.ceil((new Date(order.estimatedReadyAt).getTime() - Date.now()) / 60000))
+    : order?.estimatedWaitMinutes;
+  const etaText = currentStatus === 'READY' || currentStatus === 'PICKED_UP'
+    ? 'Prête maintenant'
+    : currentStatus === 'SERVED' || currentStatus === 'PAID'
+    ? 'Servie'
+    : remainingMinutes
+    ? `Environ ${remainingMinutes} min`
+    : 'Quelques minutes';
 
   const handleCancelOrder = async () => {
     if (!activeOrderId) return;
@@ -198,6 +208,14 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({ isOpen, on
                   <MapPin className="w-3 h-3 mr-1" /> Table {currentTableNumber}
                 </span>
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-orange-500/25 bg-orange-500/10 px-4 py-3.5 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-300">Temps d’attente estimé</p>
+                <p className="mt-1 text-lg font-black text-white">{etaText}</p>
+              </div>
+              <Clock className="h-6 w-6 text-orange-300" />
             </div>
 
             {cancelError && (

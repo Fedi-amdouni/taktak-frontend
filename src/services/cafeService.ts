@@ -1,4 +1,4 @@
-import { Cafe } from '../types';
+import { Cafe, CafeFeatureSettings } from '../types';
 import { API_BASE, fetchJson } from './apiClient';
 
 export const cafeService = {
@@ -29,6 +29,14 @@ export const cafeService = {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ latitude, longitude, geofenceRadiusMeters }),
+    });
+  },
+
+  updateCafeFeatures: async (slug: string, settings: CafeFeatureSettings): Promise<Cafe> => {
+    return fetchJson<Cafe>(`${API_BASE}/cafes/${slug}/features`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
     });
   },
 

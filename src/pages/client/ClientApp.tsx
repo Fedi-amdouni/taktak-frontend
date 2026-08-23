@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { UtensilsCrossed, Tv, ShoppingBag, Gamepad2, Sparkles, Gift, Star } from 'lucide-react';
+import { UtensilsCrossed, Tv, ShoppingBag, Gamepad2 } from 'lucide-react';
 import { Header } from './components/Header';
+import { GuestStatusPanel } from './components/GuestStatusPanel';
 import { MenuCatalog } from './components/MenuCatalog';
 import { ProductModal } from './components/ProductModal';
 import { CartDrawer } from './components/CartDrawer';
@@ -43,6 +44,7 @@ export const ClientApp: React.FC = () => {
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [isRouletteOpen, setIsRouletteOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [waiterRequest, setWaiterRequest] = useState<'WAITER' | 'BILL' | null>(null);
   const [selectedGame, setSelectedGame] = useState<EntertainmentGame | null>(null);
   const [tableStatus, setTableStatus] = useState<{ hasActiveOrders: boolean; gamesAllowed: boolean }>({
     hasActiveOrders: false,
@@ -51,6 +53,11 @@ export const ClientApp: React.FC = () => {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
   const gameTableId = `${cafeSlug}-${tableNumber}`;
+  const orderingEnabled = cafe?.orderingEnabled ?? true;
+  const waiterCallsEnabled = cafe?.waiterCallsEnabled ?? true;
+  const gamesEnabled = cafe?.gamesEnabled ?? true;
+  const ambianceVotingEnabled = cafe?.ambianceVotingEnabled ?? true;
+  const rewardsEnabled = cafe?.rewardsEnabled ?? true;
 
   useEffect(() => {
     // Initialize session and trigger table change detection
@@ -58,6 +65,8 @@ export const ClientApp: React.FC = () => {
 
     const searchParams = new URLSearchParams(window.location.search);
     const urlToken = searchParams.get('token');
+    const storageKey = `taktak_table_token_${cafeSlug}_${tableNumber}`;
+    const effectiveToken = urlToken || sessionStorage.getItem(storageKey);
 
     // Fetch Cafe & Menu & Table Status
     const loadData = async () => {
@@ -66,15 +75,22 @@ export const ClientApp: React.FC = () => {
         const [cafeData, menuData, statusData] = await Promise.all([
           api.getCafeBySlug(cafeSlug),
           api.getMenu(cafeSlug),
-          api.getTableStatus(cafeSlug, tableNumber, urlToken).catch(() => ({ hasActiveOrders: Boolean(activeOrderId), gamesAllowed: Boolean(activeOrderId), sessionValid: false })),
+          api.getTableStatus(cafeSlug, tableNumber, effectiveToken).catch(() => ({ hasActiveOrders: Boolean(activeOrderId), gamesAllowed: Boolean(activeOrderId), sessionValid: false })),
         ]);
         setCafe(cafeData);
         setCategories(menuData.categories);
         setProducts(menuData.products);
 
         // Le serveur valide le jeton sans jamais révéler sa valeur au client.
-        // En cas de jeton absent, invalide ou d'erreur réseau, l'accès reste fermé.
-        setSessionExpired(!statusData?.sessionValid);
+        // Si le jeton est valide, on le sauvegarde en sessionStorage pour résister aux rechargements de page (F5).
+        // En cas de jeton invalide ou expiré, on nettoie le sessionStorage et l'accès est bloqué.
+        if (statusData?.sessionValid && effectiveToken) {
+          sessionStorage.setItem(storageKey, effectiveToken);
+          setSessionExpired(false);
+        } else {
+          sessionStorage.removeItem(storageKey);
+          setSessionExpired(true);
+        }
 
         if (statusData) {
           setTableStatus({
@@ -154,36 +170,15 @@ export const ClientApp: React.FC = () => {
       <Header
         cafeName={cafe?.name || 'Monastir Lounge'}
         logoUrl={cafe?.logoUrl}
-        onOpenCart={() => setIsCartOpen(true)}
-        onOpenOrderTracker={() => setIsOrderTrackerOpen(true)}
+        waiterCallsEnabled={waiterCallsEnabled}
         onOpenServiceModal={() => setIsServiceModalOpen(true)}
-        onOpenRewardModal={() => setIsFeedbackOpen(true)}
       />
 
-      {/* Permanent Attractive VIP Rewards / Google Review Callout */}
-      <div className="max-w-md mx-auto w-full px-4 pt-2.5">
-        <button
-          onClick={() => setIsFeedbackOpen(true)}
-          className="w-full flex items-center justify-between gap-2.5 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 p-2.5 text-xs text-amber-200 hover:border-amber-400/50 hover:bg-amber-500/20 transition-all shadow-md group"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="w-7 h-7 rounded-xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-sm flex-shrink-0 group-hover:scale-110 transition-transform">
-              ⭐
-            </span>
-            <div className="text-left min-w-0">
-              <span className="block text-[11px] font-black text-white truncate flex items-center gap-1">
-                <span>Avis Google & Récompense VIP</span>
-                <span className="text-[9px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded-full">Cadeau</span>
-              </span>
-              <span className="text-[10px] text-amber-300/80 truncate block">Tournez la roue et gagnez jusqu'à 30% de remise</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-[11px] font-black text-amber-300 flex-shrink-0">
-            <span>Participer</span>
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-12 transition-transform" />
-          </div>
-        </button>
-      </div>
+      <GuestStatusPanel
+        activeOrderId={activeOrderId}
+        waiterRequest={waiterRequest}
+        onOpenOrder={() => setIsOrderTrackerOpen(true)}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1">
@@ -191,6 +186,7 @@ export const ClientApp: React.FC = () => {
           <MenuCatalog
             categories={categories}
             products={products}
+            orderingEnabled={orderingEnabled}
             onSelectProduct={(p) => setSelectedProduct(p)}
           />
         ) : activeTab === 'ambiance' ? (
@@ -236,14 +232,14 @@ export const ClientApp: React.FC = () => {
       </main>
 
       {/* Bottom Sticky Mobile Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#080a10]/95 backdrop-blur-2xl border-t border-white/[0.08] py-2 px-6">
-        <div className="max-w-md mx-auto flex items-center justify-around">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#080a10]/95 backdrop-blur-2xl border-t border-white/[0.08] py-2 px-2">
+        <div className="max-w-md w-full mx-auto flex items-center justify-around">
           {/* Menu Tab */}
           <button
             onClick={() => setActiveTab('menu')}
-            className={`flex flex-col items-center space-y-1 py-1 px-3 rounded-2xl transition-all duration-300 ${
+            className={`flex flex-1 flex-col items-center space-y-1 py-1 px-1 rounded-2xl transition-all duration-300 ${
               activeTab === 'menu'
-                ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30 shadow-md shadow-orange-500/10 scale-105'
+                ? 'text-orange-400'
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
@@ -251,40 +247,37 @@ export const ClientApp: React.FC = () => {
             <span className="text-[10px] font-black">Menu</span>
           </button>
 
-          {/* Games Tab */}
-          <button
+          {gamesEnabled && <button
             onClick={() => {
               setActiveTab('games');
               setSelectedGame(null);
             }}
-            className={`flex flex-col items-center space-y-1 py-1 px-3 rounded-2xl transition-all duration-300 ${
+            className={`flex flex-1 flex-col items-center space-y-1 py-1 px-1 rounded-2xl transition-all duration-300 ${
               activeTab === 'games'
-                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-md shadow-amber-500/10 scale-105'
+                ? 'text-amber-300'
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
             <Gamepad2 className="w-5 h-5" />
             <span className="text-[10px] font-black">Jeux</span>
-          </button>
+          </button>}
 
-          {/* Matchs & TV Tab */}
-          <button
+          {ambianceVotingEnabled && <button
             onClick={() => setActiveTab('ambiance')}
-            className={`flex flex-col items-center space-y-1 py-1 px-3 rounded-2xl transition-all duration-300 relative ${
+            className={`flex flex-1 flex-col items-center space-y-1 py-1 px-1 rounded-2xl transition-all duration-300 relative ${
               activeTab === 'ambiance'
-                ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-md shadow-purple-500/10 scale-105'
+                ? 'text-purple-300'
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
-            <Tv className="w-5 h-5 animate-pulse" />
-            <span className="text-[10px] font-black">Matchs & TV</span>
-            <span className="absolute top-1.5 right-2 w-2 h-2 bg-pink-500 rounded-full" />
+            <Tv className="w-5 h-5" />
+            <span className="text-[10px] font-black">Ambiance</span>
           </button>
+          }
 
-          {/* Cart Tab */}
-          <button
+          {orderingEnabled && <button
             onClick={() => setIsCartOpen(true)}
-            className="flex flex-col items-center space-y-1 py-1 px-3 rounded-2xl text-gray-400 hover:text-orange-400 relative transition-all duration-300 active:scale-95"
+            className="flex flex-1 flex-col items-center space-y-1 py-1 px-1 rounded-2xl text-gray-400 hover:text-orange-400 relative transition-all duration-300 active:scale-95"
           >
             <ShoppingBag className="w-5 h-5" />
             <span className="text-[10px] font-black">Panier</span>
@@ -293,20 +286,20 @@ export const ClientApp: React.FC = () => {
                 {totalCount}
               </span>
             )}
-          </button>
+          </button>}
         </div>
       </nav>
 
       {/* Item Customization Modal */}
-      <ProductModal
+      {orderingEnabled && <ProductModal
         product={selectedProduct}
         allProducts={products}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={handleAddToCart}
-      />
+      />}
 
       {/* Upsell Cross-Selling Modal */}
-      {upsellProduct && (
+      {orderingEnabled && upsellProduct && (
         <UpsellModal
           sourceProduct={upsellProduct}
           isOpen={!!upsellProduct}
@@ -316,12 +309,13 @@ export const ClientApp: React.FC = () => {
       )}
 
       {/* Cart Drawer */}
-      <CartDrawer
+      {orderingEnabled && <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         onOrderCreated={() => setIsOrderTrackerOpen(true)}
         onOpenRoulette={() => setIsRouletteOpen(true)}
-      />
+        gamesEnabled={gamesEnabled}
+      />}
 
       {/* Real-time Order Tracker */}
       <OrderTrackerModal
@@ -330,35 +324,36 @@ export const ClientApp: React.FC = () => {
       />
 
       {/* Service Call & Bill Modal */}
-      <ServiceModal
+      {waiterCallsEnabled && <ServiceModal
         cafeSlug={cafeSlug}
         tableNumber={tableNumber}
         hasActiveOrders={tableStatus.hasActiveOrders}
         isOpen={isServiceModalOpen}
         onClose={() => setIsServiceModalOpen(false)}
+        onRequestSent={(type) => setWaiterRequest(type)}
         onBillRequested={async () => {
           if (!activeOrderId || localStorage.getItem(`taktak_feedback_${activeOrderId}`)) return;
           try {
             const campaign = await api.getRewardCampaign(cafeSlug);
-            if (campaign.enabled) setTimeout(() => setIsFeedbackOpen(true), 2100);
+            if (rewardsEnabled && campaign.enabled) setTimeout(() => setIsFeedbackOpen(true), 2100);
           } catch {
             /* optional */
           }
         }}
-      />
+      />}
 
-      <FeedbackRewardModal
+      {rewardsEnabled && <FeedbackRewardModal
         isOpen={isFeedbackOpen}
         onClose={() => setIsFeedbackOpen(false)}
         cafeSlug={cafeSlug}
         orderId={activeOrderId}
-      />
+      />}
 
-      <ChkounYkhallesModal
+      {gamesEnabled && <ChkounYkhallesModal
         isOpen={isRouletteOpen}
         onClose={() => setIsRouletteOpen(false)}
         tableId={gameTableId}
-      />
+      />}
     </div>
   );
 };
