@@ -25,6 +25,11 @@ import { useCart } from '../../context/CartContext';
 import { api } from '../../services/api';
 import { Cafe, Category, Product } from '../../types';
 import { decideTableSessionValidation } from '../../utils/tableSessionValidation';
+import {
+  readStorageItemSafely,
+  removeStorageItemSafely,
+  writeStorageItemSafely,
+} from '../../utils/tableSessionStorage';
 
 export const ClientApp: React.FC = () => {
   const { cafeSlug = 'monastir-lounge', tableId = '05' } = useParams<{ cafeSlug: string; tableId: string }>();
@@ -67,7 +72,8 @@ export const ClientApp: React.FC = () => {
     const searchParams = new URLSearchParams(window.location.search);
     const urlToken = searchParams.get('token');
     const storageKey = `taktak_table_token_${cafeSlug}_${tableNumber}`;
-    const effectiveToken = urlToken || sessionStorage.getItem(storageKey);
+    const storedToken = readStorageItemSafely(sessionStorage, storageKey);
+    const effectiveToken = urlToken || storedToken;
 
     // Fetch Cafe & Menu & Table Status
     const loadData = async () => {
@@ -86,16 +92,19 @@ export const ClientApp: React.FC = () => {
         }
 
         const statusData = statusResult.status === 'fulfilled' ? statusResult.value : undefined;
-        const validationDecision = decideTableSessionValidation(statusData?.sessionValid);
+        const validationDecision = decideTableSessionValidation(
+          statusData?.sessionValid,
+          Boolean(storedToken),
+        );
 
         // Le serveur valide le jeton sans jamais révéler sa valeur au client.
         // Une panne réseau conserve la dernière décision au lieu d'expulser le client de sa table.
         if (validationDecision === 'ACCEPT' && effectiveToken) {
-          sessionStorage.setItem(storageKey, effectiveToken);
           setSessionExpired(false);
+          writeStorageItemSafely(sessionStorage, storageKey, effectiveToken);
         } else if (validationDecision === 'REJECT') {
-          sessionStorage.removeItem(storageKey);
           setSessionExpired(true);
+          removeStorageItemSafely(sessionStorage, storageKey);
         }
 
         if (statusData) {

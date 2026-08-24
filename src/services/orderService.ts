@@ -4,6 +4,14 @@ import { API_BASE, fetchJson } from './apiClient';
 type LocalOrderListener = (order: Order) => void;
 const localListeners: LocalOrderListener[] = [];
 
+export interface TableTransferRequest {
+  sourceTableNumber: number;
+  newTableNumber: number;
+  participantId: string;
+  sourceSessionToken: string;
+  targetSessionToken: string;
+}
+
 export function subscribeLocalOrders(listener: LocalOrderListener) {
   localListeners.push(listener);
   return () => {
@@ -43,11 +51,15 @@ export const orderService = {
     });
   },
 
-  transferOrderTable: async (orderId: string, newTableNumber: number): Promise<Order> => {
-    return fetchJson<Order>(`${API_BASE}/orders/${orderId}/transfer-table`, {
-      method: 'PATCH',
+  transferOrderTable: async (
+    orderId: string,
+    cafeSlug: string,
+    request: TableTransferRequest,
+  ): Promise<Order[]> => {
+    return fetchJson<Order[]>(`${API_BASE}/cafes/${cafeSlug}/orders/${orderId}/transfer-table`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ newTableNumber }),
+      body: JSON.stringify(request),
     });
   },
 };

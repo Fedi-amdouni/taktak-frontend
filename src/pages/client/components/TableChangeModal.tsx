@@ -1,30 +1,64 @@
-import React from 'react';
-import { RefreshCw, MapPin, AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { RefreshCw, MapPin, CheckCircle2, LoaderCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useTableSession } from '../../../context/TableSessionContext';
 import { api } from '../../../services/api';
+import { getOrCreateParticipantId } from '../../../utils/clientIdentity';
+import { clientTablePath, completeTableTransfer } from '../../../utils/tableTransferFlow';
+import { readStorageItemSafely, removeStorageItemSafely } from '../../../utils/tableSessionStorage';
 
 export const TableChangeModal: React.FC = () => {
   const {
     showTableChangeModal,
+    currentCafeSlug,
     currentTableNumber,
     pendingTransferTableNumber,
     activeOrderId,
     confirmTableTransfer,
     cancelTableTransfer,
   } = useTableSession();
+  const navigate = useNavigate();
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [transferError, setTransferError] = useState<string | null>(null);
 
   if (!showTableChangeModal || pendingTransferTableNumber === null) return null;
 
   const handleConfirm = async () => {
-    if (activeOrderId) {
-      try {
-        // Transfer active backend order to new table
-        await api.transferOrderTable(activeOrderId, pendingTransferTableNumber);
-      } catch (e) {
-        console.error('Error transferring order table', e);
-      }
+    if (isTransferring) return;
+    setIsTransferring(true);
+    setTransferError(null);
+
+    const sourceTokenKey = `taktak_table_token_${currentCafeSlug}_${currentTableNumber}`;
+    const targetTokenKey = `taktak_table_token_${currentCafeSlug}_${pendingTransferTableNumber}`;
+    const targetToken = new URLSearchParams(window.location.search).get('token')
+      || readStorageItemSafely(sessionStorage, targetTokenKey);
+    try {
+      await completeTableTransfer({
+        activeOrderId,
+        cafeSlug: currentCafeSlug,
+        sourceTableNumber: currentTableNumber,
+        targetTableNumber: pendingTransferTableNumber,
+        participantId: getOrCreateParticipantId(),
+        sourceSessionToken: readStorageItemSafely(sessionStorage, sourceTokenKey),
+        targetSessionToken: targetToken,
+      }, {
+        transferOrder: api.transferOrderTable,
+        commitLocalTransfer: confirmTableTransfer,
+      });
+      removeStorageItemSafely(sessionStorage, sourceTokenKey);
+    } catch (error) {
+      console.error('Error transferring order table', error);
+      setTransferError(error instanceof Error
+        ? error.message
+        : 'Le transfert a échoué. Votre commande reste sur l’ancienne table.');
+    } finally {
+      setIsTransferring(false);
     }
-    confirmTableTransfer();
+  };
+
+  const handleCancel = () => {
+    cancelTableTransfer();
+    navigate(clientTablePath(currentCafeSlug, currentTableNumber), { replace: true });
   };
 
   return (
@@ -60,20 +94,28 @@ export const TableChangeModal: React.FC = () => {
           Souhaites-tu transférer ton panier et tes commandes en cours vers la Table {pendingTransferTableNumber} ?
         </p>
 
+        {transferError && (
+          <p role="alert" className="rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-semibold text-red-200">
+            {transferError}
+          </p>
+        )}
+
         {/* Buttons */}
         <div className="grid grid-cols-2 gap-3 pt-2">
           <button
-            onClick={cancelTableTransfer}
+            onClick={handleCancel}
+            disabled={isTransferring}
             className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3 px-4 rounded-2xl text-xs transition-all active:scale-95 border border-gray-700"
           >
             Non, garder Table {currentTableNumber}
           </button>
           <button
             onClick={handleConfirm}
+            disabled={isTransferring}
             className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold py-3 px-4 rounded-2xl text-xs shadow-lg shadow-orange-500/25 transition-all active:scale-95 flex items-center justify-center space-x-1"
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Transférer</span>
+            {isTransferring ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            <span>{isTransferring ? 'Transfert...' : 'Transférer'}</span>
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { TableSession } from '../types';
+import { persistTableSession } from '../utils/tableSessionStorage';
 
 interface TableSessionContextType {
   currentCafeSlug: string;
@@ -55,7 +56,7 @@ export const TableSessionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       activeOrderId: orderId || undefined,
       lastUpdated: Date.now(),
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    persistTableSession(localStorage, STORAGE_KEY, session);
   };
 
   const initializeSession = (cafeSlug: string, tableNumber: number) => {
