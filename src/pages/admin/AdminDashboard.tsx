@@ -123,7 +123,7 @@ export const AdminDashboard: React.FC = () => {
         {activeTab === 'menu' && <MenuManager cafeSlug={cafeSlug} />}
         {activeTab === 'waiters' && <WaiterManager cafeSlug={cafeSlug} />}
         {activeTab === 'rewards' && <RewardCampaignManager cafeSlug={cafeSlug} />}
-        {activeTab === 'qrcodes' && <QrPdfGenerator cafeSlug={cafeSlug} cafeName="Monastir Lounge" />}
+        {activeTab === 'qrcodes' && <QrPdfGenerator cafeSlug={cafeSlug} cafeName={cafeSlug} />}
       </div>
     </div>
   );

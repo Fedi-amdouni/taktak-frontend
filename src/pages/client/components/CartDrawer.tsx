@@ -6,6 +6,7 @@ import { useTableSession } from '../../../context/TableSessionContext';
 import { api } from '../../../services/api';
 import { formatPrice } from '../../../utils/formatPrice';
 import { clearPendingOrderId, getOrCreateParticipantId, getOrCreatePendingOrderId } from '../../../utils/clientIdentity';
+import { requestOrderLocation } from '../../../utils/orderLocation';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -88,6 +89,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
     let clientLat: number | undefined = undefined;
     let clientLng: number | undefined = undefined;
+    let clientAccuracyMeters: number | undefined = undefined;
 
     // 1. Vérifier si le client est déjà connecté au WiFi officiel du café
     let isAlreadyOnWifi = false;
@@ -100,19 +102,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     // 2. Hors du WiFi officiel, attendre le choix explicite du client dans
     // la popup du navigateur. Sans timeout, la commande ne part ni avant
     // « Autoriser », ni avant « Refuser ».
-    if (!isAlreadyOnWifi && navigator.geolocation) {
-      try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            maximumAge: 60000,
-          });
-        });
-        clientLat = position.coords.latitude;
-        clientLng = position.coords.longitude;
-      } catch {
-        // Le refus est un choix valide : la commande passe alors comme présence non vérifiée.
-      }
+    if (!isAlreadyOnWifi) {
+      const location = await requestOrderLocation(navigator.geolocation);
+      clientLat = location?.latitude;
+      clientLng = location?.longitude;
+      clientAccuracyMeters = location?.accuracyMeters;
     }
 
     const cartSignature = JSON.stringify({
@@ -138,6 +132,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         couponCode: coupon?.code,
         clientLatitude: clientLat,
         clientLongitude: clientLng,
+        clientAccuracyMeters,
         items: cart.map((item) => ({
           productId: item.productId,
           productName: item.productName,

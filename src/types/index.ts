@@ -147,7 +147,10 @@ export interface Order {
   presenceStatus?: OrderPresenceStatus;
   clientLatitude?: number;
   clientLongitude?: number;
+  clientAccuracyMeters?: number;
   distanceMeters?: number;
+  archivedAt?: string;
+  archiveReason?: string;
   estimatedWaitMinutes?: number;
   estimatedReadyAt?: string;
   totalPrice: number;
@@ -176,6 +179,7 @@ export interface CreateOrderPayload {
   couponCode?: string;
   clientLatitude?: number;
   clientLongitude?: number;
+  clientAccuracyMeters?: number;
 }
 
 export interface RewardOption { id?: string; label: string; discountPercent: number; probabilityPercent: number; enabled: boolean; }

@@ -168,7 +168,7 @@ export const ClientApp: React.FC = () => {
 
       {/* Header Bar */}
       <Header
-        cafeName={cafe?.name || 'Monastir Lounge'}
+        cafeName={cafe?.name || cafeSlug}
         logoUrl={cafe?.logoUrl}
         waiterCallsEnabled={waiterCallsEnabled}
         onOpenServiceModal={() => setIsServiceModalOpen(true)}

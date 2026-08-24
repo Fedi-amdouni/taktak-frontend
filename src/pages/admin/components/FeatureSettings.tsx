@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Copy, ExternalLink, Monitor, Save, Settings2 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { CafeFeatureSettings, TvMenuStyle } from '../../../types';
+import { countEnabledFeatures } from '../../../utils/featureSettings';
 
 interface FeatureSettingsProps {
   cafeSlug: string;
@@ -95,7 +96,9 @@ export const FeatureSettings: React.FC<FeatureSettingsProps> = ({ cafeSlug }) =>
   }, [cafeSlug]);
 
   const dirty = useMemo(() => JSON.stringify(settings) !== JSON.stringify(savedSettings), [settings, savedSettings]);
-  const activeCount = Object.values(settings).filter(Boolean).length;
+  const featureKeys = FEATURES.map((feature) => feature.key);
+  const activeCount = countEnabledFeatures(settings, featureKeys);
+  const totalCount = FEATURES.length;
   const tvUrl = `${window.location.origin}/tv/${cafeSlug}`;
 
   const save = async () => {
@@ -143,7 +146,7 @@ export const FeatureSettings: React.FC<FeatureSettingsProps> = ({ cafeSlug }) =>
           </div>
           <div>
             <h2 className="text-base font-black text-white">Expérience activée</h2>
-            <p className="text-[11px] text-gray-400 mt-0.5">{activeCount} module{activeCount !== 1 ? 's' : ''} actif{activeCount !== 1 ? 's' : ''} sur 6</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">{activeCount} module{activeCount !== 1 ? 's' : ''} actif{activeCount !== 1 ? 's' : ''} sur {totalCount}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

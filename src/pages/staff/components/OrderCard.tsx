@@ -187,12 +187,12 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onUpdateStatus }) =
           {order.status === 'PAID' && (
             <div className="flex items-center space-x-1.5">
               <span className="text-[10px] font-bold text-violet-300 bg-violet-500/10 px-2 py-1.5 rounded-xl border border-violet-500/20">
-                Payée (15s)
+                Payée · à archiver
               </span>
               <button
                 onClick={() => onUpdateStatus(order.id, 'ARCHIVED')}
                 className="bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border border-orange-500/30 font-black text-[10px] px-2 py-1.5 rounded-xl transition-all active:scale-95"
-                title="Libérer la table immédiatement"
+                title="Archiver cette commande; la table sera libérée si toutes ses commandes sont terminales"
               >
                 📦 Archiver
               </button>

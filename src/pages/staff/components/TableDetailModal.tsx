@@ -238,7 +238,7 @@ export const TableDetailModal: React.FC<TableDetailModalProps> = ({
               {order.status === 'PAID' && (
                 <div className="space-y-2">
                   <div className="w-full bg-violet-500/10 text-violet-300 font-bold py-2 px-3 rounded-2xl border border-violet-500/20 text-center text-xs">
-                    Payée · archivage automatique (15s)
+                    Payée · prête à être archivée
                   </div>
                   <button
                     onClick={() => {
@@ -247,7 +247,7 @@ export const TableDetailModal: React.FC<TableDetailModalProps> = ({
                     }}
                     className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black py-2.5 px-4 rounded-2xl text-xs flex items-center justify-center space-x-2 transition-all shadow-lg shadow-orange-500/20 active:scale-95"
                   >
-                    <span>📦 Archiver & Libérer la Table Immédiatement</span>
+                    <span>📦 Archiver cette commande</span>
                   </button>
                 </div>
               )}

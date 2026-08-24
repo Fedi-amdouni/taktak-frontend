@@ -9,8 +9,8 @@ interface CafeLocationSettingsProps {
 
 export const CafeLocationSettings: React.FC<CafeLocationSettingsProps> = ({ cafeSlug }) => {
   const [cafe, setCafe] = useState<Cafe | null>(null);
-  const [latitude, setLatitude] = useState<number>(35.777);
-  const [longitude, setLongitude] = useState<number>(10.826);
+  const [latitude, setLatitude] = useState<number | ''>('');
+  const [longitude, setLongitude] = useState<number | ''>('');
   const [radius, setRadius] = useState<number>(120);
   const [isDetecting, setIsDetecting] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -23,9 +23,9 @@ export const CafeLocationSettings: React.FC<CafeLocationSettingsProps> = ({ cafe
         const data = await api.getCafeBySlug(cafeSlug);
         if (data) {
           setCafe(data);
-          if (data.latitude) setLatitude(data.latitude);
-          if (data.longitude) setLongitude(data.longitude);
-          if (data.geofenceRadiusMeters) setRadius(data.geofenceRadiusMeters);
+          if (data.latitude != null) setLatitude(data.latitude);
+          if (data.longitude != null) setLongitude(data.longitude);
+          if (data.geofenceRadiusMeters != null) setRadius(data.geofenceRadiusMeters);
         }
       } catch (err) {
         console.error('Erreur chargement café', err);
@@ -59,6 +59,10 @@ export const CafeLocationSettings: React.FC<CafeLocationSettingsProps> = ({ cafe
   };
 
   const handleSave = async () => {
+    if (latitude === '' || longitude === '' || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      setErrorMsg("Les coordonnées du café doivent être confirmées avant l'enregistrement.");
+      return;
+    }
     setIsSaving(true);
     setErrorMsg(null);
     setSaveSuccess(false);
@@ -144,7 +148,7 @@ export const CafeLocationSettings: React.FC<CafeLocationSettingsProps> = ({ cafe
                 type="number"
                 step="0.000001"
                 value={latitude}
-                onChange={(e) => setLatitude(parseFloat(e.target.value) || 0)}
+                onChange={(e) => setLatitude(e.target.value === '' ? '' : Number(e.target.value))}
                 className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-orange-500"
               />
             </div>
@@ -154,7 +158,7 @@ export const CafeLocationSettings: React.FC<CafeLocationSettingsProps> = ({ cafe
                 type="number"
                 step="0.000001"
                 value={longitude}
-                onChange={(e) => setLongitude(parseFloat(e.target.value) || 0)}
+                onChange={(e) => setLongitude(e.target.value === '' ? '' : Number(e.target.value))}
                 className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-orange-500"
               />
             </div>

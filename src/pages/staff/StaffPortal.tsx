@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Store, KeyRound, ArrowRight, ShieldCheck, MapPin, ChefHat, Tablet } from 'lucide-react';
+import { Store, KeyRound, ArrowRight, ShieldCheck, ChefHat, Tablet } from 'lucide-react';
 import { Cafe } from '../../types';
 import { api } from '../../services/api';
 
@@ -21,18 +21,9 @@ export const StaffPortal: React.FC = () => {
     const fetchCafes = async () => {
       try {
         const list = await api.getAllCafes();
-        if (list && list.length > 0) {
-          setCafes(list);
-        } else {
-          setCafes([
-            { id: '1', name: 'Monastir Lounge', slug: 'monastir-lounge', logoUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=300&q=80' },
-            { id: '2', name: 'Carthage Lounge', slug: 'carthage-lounge', logoUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=300&q=80' },
-          ]);
-        }
+        setCafes(list || []);
       } catch {
-        setCafes([
-          { id: '1', name: 'Monastir Lounge', slug: 'monastir-lounge', logoUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=300&q=80' },
-        ]);
+        setCafes([]);
       }
     };
     fetchCafes();
@@ -138,9 +129,7 @@ export const StaffPortal: React.FC = () => {
                     <img src={c.logoUrl || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=300&q=80'} alt={c.name} className="w-12 h-12 rounded-xl object-cover ring-2 ring-white/10 group-hover:ring-orange-500/40" />
                     <div>
                       <h3 className="text-sm font-extrabold text-white group-hover:text-orange-400 transition-colors">{c.name}</h3>
-                      <p className="text-[11px] text-gray-500 flex items-center mt-0.5">
-                        <MapPin className="w-3 h-3 mr-1" /> Monastir, Tunisie
-                      </p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">{c.slug}</p>
                     </div>
                   </div>
                   <div className="w-9 h-9 rounded-xl bg-white/[0.06] group-hover:bg-orange-500 flex items-center justify-center text-gray-400 group-hover:text-white transition-all">
