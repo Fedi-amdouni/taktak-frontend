@@ -1,9 +1,44 @@
 import { Category, Product } from '../types';
 import { API_BASE, fetchJson } from './apiClient';
 
+type MenuPayload = { categories: Category[]; products: Product[] };
+type CachedMenu = { savedAt: number; menu: MenuPayload };
+
+const MENU_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
+const menuCacheKey = (slug: string) => `taktak_menu_cache_${slug}`;
+
+const readCachedMenu = (slug: string): MenuPayload | null => {
+  try {
+    const raw = globalThis.localStorage?.getItem(menuCacheKey(slug));
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as CachedMenu;
+    if (!cached.savedAt || Date.now() - cached.savedAt > MENU_CACHE_MAX_AGE_MS) return null;
+    if (!Array.isArray(cached.menu?.categories) || !Array.isArray(cached.menu?.products)) return null;
+    return cached.menu;
+  } catch {
+    return null;
+  }
+};
+
+const cacheMenu = (slug: string, menu: MenuPayload) => {
+  try {
+    globalThis.localStorage?.setItem(menuCacheKey(slug), JSON.stringify({ savedAt: Date.now(), menu }));
+  } catch {
+    // A full or disabled browser storage must never block the live menu.
+  }
+};
+
 export const menuService = {
-  getMenu: async (slug: string): Promise<{ categories: Category[]; products: Product[] }> => {
-    return fetchJson<{ categories: Category[]; products: Product[] }>(`${API_BASE}/cafes/${slug}/menu`);
+  getMenu: async (slug: string): Promise<MenuPayload> => {
+    try {
+      const menu = await fetchJson<MenuPayload>(`${API_BASE}/cafes/${slug}/menu`);
+      cacheMenu(slug, menu);
+      return menu;
+    } catch (error) {
+      const cached = readCachedMenu(slug);
+      if (cached) return cached;
+      throw error;
+    }
   },
 
   createCategory: async (payload: Pick<Category, 'cafeId' | 'name'> & Partial<Pick<Category, 'sortOrder'>>): Promise<Category> => {

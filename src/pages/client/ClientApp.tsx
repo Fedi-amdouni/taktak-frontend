@@ -24,6 +24,7 @@ import { useTableSession } from '../../context/TableSessionContext';
 import { useCart } from '../../context/CartContext';
 import { api } from '../../services/api';
 import { Cafe, Category, Product } from '../../types';
+import { decideTableSessionValidation } from '../../utils/tableSessionValidation';
 
 export const ClientApp: React.FC = () => {
   const { cafeSlug = 'monastir-lounge', tableId = '05' } = useParams<{ cafeSlug: string; tableId: string }>();
@@ -72,22 +73,27 @@ export const ClientApp: React.FC = () => {
     const loadData = async () => {
       try {
         setIsLoadingSession(true);
-        const [cafeData, menuData, statusData] = await Promise.all([
+        const [cafeResult, menuResult, statusResult] = await Promise.allSettled([
           api.getCafeBySlug(cafeSlug),
           api.getMenu(cafeSlug),
-          api.getTableStatus(cafeSlug, tableNumber, effectiveToken).catch(() => ({ hasActiveOrders: Boolean(activeOrderId), gamesAllowed: Boolean(activeOrderId), sessionValid: false })),
+          api.getTableStatus(cafeSlug, tableNumber, effectiveToken),
         ]);
-        setCafe(cafeData);
-        setCategories(menuData.categories);
-        setProducts(menuData.products);
+
+        if (cafeResult.status === 'fulfilled') setCafe(cafeResult.value);
+        if (menuResult.status === 'fulfilled') {
+          setCategories(menuResult.value.categories);
+          setProducts(menuResult.value.products);
+        }
+
+        const statusData = statusResult.status === 'fulfilled' ? statusResult.value : undefined;
+        const validationDecision = decideTableSessionValidation(statusData?.sessionValid);
 
         // Le serveur valide le jeton sans jamais révéler sa valeur au client.
-        // Si le jeton est valide, on le sauvegarde en sessionStorage pour résister aux rechargements de page (F5).
-        // En cas de jeton invalide ou expiré, on nettoie le sessionStorage et l'accès est bloqué.
-        if (statusData?.sessionValid && effectiveToken) {
+        // Une panne réseau conserve la dernière décision au lieu d'expulser le client de sa table.
+        if (validationDecision === 'ACCEPT' && effectiveToken) {
           sessionStorage.setItem(storageKey, effectiveToken);
           setSessionExpired(false);
-        } else {
+        } else if (validationDecision === 'REJECT') {
           sessionStorage.removeItem(storageKey);
           setSessionExpired(true);
         }
@@ -97,6 +103,15 @@ export const ClientApp: React.FC = () => {
             hasActiveOrders: statusData.hasActiveOrders || Boolean(activeOrderId),
             gamesAllowed: statusData.gamesAllowed || Boolean(activeOrderId),
           });
+        } else {
+          setTableStatus(previous => ({
+            hasActiveOrders: previous.hasActiveOrders || Boolean(activeOrderId),
+            gamesAllowed: previous.gamesAllowed || Boolean(activeOrderId),
+          }));
+        }
+
+        if (cafeResult.status === 'rejected' && menuResult.status === 'rejected') {
+          throw menuResult.reason;
         }
       } catch (e) {
         console.error('Erreur chargement données client', e);

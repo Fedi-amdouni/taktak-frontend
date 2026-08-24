@@ -35,12 +35,36 @@ export async function fetchJson<T>(url: string, options?: RequestInit): Promise<
   const session = authSession.get();
   const headers = new Headers(options?.headers);
   if (session?.token) headers.set('Authorization', `Bearer ${session.token}`);
-  const response = await fetch(url, { ...options, headers });
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+  const method = (options?.method || 'GET').toUpperCase();
+  const canRetry = method === 'GET' || method === 'HEAD';
+  const retryDelays = canRetry ? [400, 1_000, 2_000] : [];
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(url, { ...options, headers });
+    } catch (error) {
+      if (!canRetry || options?.signal?.aborted || attempt === retryDelays.length) throw error;
+      lastError = error;
+      await new Promise(resolve => globalThis.setTimeout(resolve, retryDelays[attempt]));
+      continue;
+    }
+
+    if (response.ok) {
+      if (response.status === 204) return {} as T;
+      return response.json();
+    }
+
+    const error = new Error(`API Error: ${response.status} ${response.statusText}`);
+    const retryableStatus = response.status === 408
+      || response.status === 429
+      || response.status >= 500;
+    if (!canRetry || !retryableStatus || attempt === retryDelays.length) throw error;
+    lastError = error;
+    await new Promise(resolve => globalThis.setTimeout(resolve, retryDelays[attempt]));
   }
-  if (response.status === 24 || response.status === 204) {
-    return {} as T;
-  }
-  return response.json();
+
+  throw lastError instanceof Error ? lastError : new Error('API request failed');
 }

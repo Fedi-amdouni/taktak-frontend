@@ -116,6 +116,8 @@ export const createGameSocket = (tableId: string, onEvent: (event: GameEvent) =>
     maxReconnectDelay: 30000,
     reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
     connectionTimeout: 10000,
+    heartbeatIncoming: 10000,
+    heartbeatOutgoing: 10000,
     onConnect: () => {
       client.subscribe(`/topic/table/${tableId}/game`, message => {
         try { onEvent(JSON.parse(message.body) as GameEvent); } catch { /* ignore malformed messages */ }
